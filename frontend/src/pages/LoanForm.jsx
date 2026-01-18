@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HelpCircle, Calculator, Wallet, Briefcase, IndianRupee } from 'lucide-react';
+import { calculateEstimatedScore } from '../utils/creditScoreCalculator';
 
 const LoanForm = () => {
   const navigate = useNavigate();
@@ -17,16 +18,15 @@ const LoanForm = () => {
 
   // Simulator State
   const [estimator, setEstimator] = useState({ payOnTime: 'yes', hasLoans: 'no', hasCreditCard: 'no' });
+  const [age, setAge] = useState('');
 
   const calculateScore = () => {
-    let base = 650;
-    if (estimator.payOnTime === 'yes') base += 100;
-    if (estimator.payOnTime === 'sometimes') base -= 50;
-    if (estimator.hasLoans === 'yes') base += 30; 
-    if (estimator.hasCreditCard === 'yes') base += 20;
-    if (base > 850) base = 850;
-    
-    setFormData({ ...formData, creditScore: base });
+    if (!age) {
+      alert('Please enter your age to calculate the score');
+      return;
+    }
+    const estimatedScore = calculateEstimatedScore(estimator, parseInt(age));
+    setFormData({ ...formData, creditScore: estimatedScore });
     setShowEstimator(false);
   };
 
@@ -107,13 +107,20 @@ const LoanForm = () => {
                 <div className="animate-fade-in-down bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
                   <p className="text-sm font-semibold text-slate-800 mb-3">Score Simulator</p>
                   <div className="grid grid-cols-1 gap-3 text-sm">
+                    <input type="number" placeholder="Your Age" className="p-2 border rounded" 
+                      value={age} onChange={(e) => setAge(e.target.value)} />
                     <select className="p-2 border rounded" onChange={(e) => setEstimator({...estimator, payOnTime: e.target.value})}>
                       <option value="yes">I pay bills on time (Always)</option>
                       <option value="sometimes">I miss payments sometimes</option>
+                      <option value="no">I rarely pay on time</option>
                     </select>
                     <select className="p-2 border rounded" onChange={(e) => setEstimator({...estimator, hasLoans: e.target.value})}>
                       <option value="no">I have no other loans</option>
                       <option value="yes">I have active loans</option>
+                    </select>
+                    <select className="p-2 border rounded" onChange={(e) => setEstimator({...estimator, hasCreditCard: e.target.value})}>
+                      <option value="no">I don't have a credit card</option>
+                      <option value="yes">I have a credit card</option>
                     </select>
                     <button type="button" onClick={calculateScore} className="w-full bg-indigo-600 text-white py-2 rounded font-medium hover:bg-indigo-700">
                       Estimate Score
