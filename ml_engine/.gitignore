@@ -1,0 +1,13 @@
+# Python Internals
+__pycache__/
+*.py[cod]
+
+
+venv/
+.env
+
+loan_data.csv
+
+.vscode/
+.idea/
+.DS_Store
