@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
 import LoanForm from './pages/LoanForm';
 import Dashboard from './pages/Dashboard';
+import Auth from './pages/Auth';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/check-eligibility" element={<LoanForm />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path='/auth' element={<Auth/>}/>
         </Routes>
       </div>
     </Router>

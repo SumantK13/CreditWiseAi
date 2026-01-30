@@ -7,23 +7,23 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    // 1. ENTRANCE ANIMATION: Slide down from -20px with fade
+    // 1. POSITION CHANGE: 'absolute' instead of 'fixed'
+    //    This keeps it at the top of the page (initially), but it scrolls away when you go down.
+    // 2. DELAY ADDED: Added 'delay: 0.2' so it fades in smoothly with the rest of the site.
     <motion.nav 
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="fixed top-6 inset-x-0 mx-auto z-50 w-full max-w-7xl px-4 sm:px-6 lg:px-8"
+      transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+      className="absolute top-6 inset-x-0 mx-auto z-50 w-full max-w-7xl px-4 sm:px-6 lg:px-8"
     >
       
-      {/* 2. THE GRADIENT BORDER CONTAINER */}
-      {/* p-[1px] creates the border thickness. overflow-hidden clips the spinning gradient. */}
+      {/* THE GRADIENT BORDER CONTAINER */}
       <div className="relative p-[1px] rounded-full overflow-hidden group">
         
-        {/* The Spinning Gradient (The "Sexy" Border) */}
-        {/* We use a conic gradient that spins around. */}
+        {/* The Spinning Gradient */}
         <div className="absolute inset-[-1000%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#000000_0%,#1e293b_50%,#06b6d4_75%,#8b5cf6_100%)] opacity-70 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {/* 3. THE NAVBAR CONTENT (Inner Black Pill) */}
+        {/* THE NAVBAR CONTENT (Inner Black Pill) */}
         <div className="relative flex items-center justify-between h-14 px-6 rounded-full bg-black/80 backdrop-blur-xl">
           
           {/* Logo */}
