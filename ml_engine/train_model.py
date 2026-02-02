@@ -13,7 +13,7 @@ df = pd.read_csv('loan_data.csv')
 X = df.drop(columns=['Loan_Status'])
 y = df['Loan_Status']
 
-numeric_features = ['Monthly_Income', 'Current_EMIs', 'Credit_Score', 'Loan_Amount', 'Tenure_Years']
+numeric_features = ['Age','Monthly_Income', 'Current_EMIs', 'Credit_Score', 'Loan_Amount', 'Tenure_Years']
 categorical_features = ['Employment_Type']
 
 # 4. Build the Preprocessing Pipeline (The "Proper" Way)
