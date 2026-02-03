@@ -17,6 +17,7 @@ def predict():
         data = request.json
         
         input_df = pd.DataFrame([{
+             'Age': data['age'],
             'Monthly_Income': data['monthly_income'],
             'Current_EMIs': data['current_emis'],
             'Employment_Type': data['employment_type'], 
