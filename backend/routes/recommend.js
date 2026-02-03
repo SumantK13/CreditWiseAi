@@ -8,6 +8,7 @@ const router = express.Router();
 router.post('/', async (req, res) => {
     try {
         const { 
+            age,
             monthlyIncome, 
             currentEMIs, 
             employmentType, 
@@ -21,6 +22,7 @@ router.post('/', async (req, res) => {
         let approvalProbability = 0;
         try {
             const mlResponse = await axios.post('http://127.0.0.1:5001/predict', { // Replace 5001 with Model's address
+                 age: age,
                 monthly_income: monthlyIncome,
                 current_emis: currentEMIs,
                 employment_type: employmentType,

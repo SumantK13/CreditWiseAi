@@ -1,136 +1,244 @@
 import puppeteer from 'puppeteer';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import BankLoan from './models/BankLoan.js'; 
+import BankLoan from './models/BankLoan.js';
+import { scrapeTwoWheelerLoan } from './scrapers/twoWheelerLoan.logic.js';
+import { scrapeUsedCarLoan } from './scrapers/usedCarLoan.logic.js';
+import { scrapeEducationLoan } from './scrapers/educationLoan.logic.js';
+
+import { scrapePersonalLoan } from './scrapers/personalLoan.logic.js';
+import { scrapeHomeLoan } from './scrapers/homeLoan.logic.js';
+import { scrapeCarLoan } from './scrapers/carLoan.logic.js';
 
 dotenv.config();
 
 const scrapeBankBazaar = async () => {
-    console.log("-------------------------------------");
-    console.log("🚀 Starting Scraper V2 (Fixing Names)...");
-    
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("✅ Database Connected");
-        
-        // 1. CLEAR OLD DATA (To remove the "Messed Up" entries)
-        await BankLoan.deleteMany({});
-        console.log("🧹 Old data cleared.");
+  console.log("🚀 Starting BankBazaar Scraper");
 
-    } catch (err) {
-        console.error("❌ DB Error:", err);
-        return;
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log("✅ Database Connected");
+
+  const browser = await puppeteer.launch({
+    headless: false,
+    defaultViewport: null,
+    args: ['--start-maximized']
+  });
+
+  const page = await browser.newPage(); // ✅ page defined ONCE
+
+  try {
+    /* ========== PERSONAL LOAN ========== */
+    const personalLoanUrl = "https://www.bankbazaar.com/personal-loan.html";
+    console.log("🔎 Scraping Personal Loan");
+
+    await page.goto(personalLoanUrl, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 3000));
+
+    const personalLoans = await scrapePersonalLoan(page);
+    console.log(`🎉 Found ${personalLoans.length} Personal Loans`);
+
+    for (const loan of personalLoans) {
+      const m = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+      if (!m) continue;
+
+      await BankLoan.updateOne(
+        { bankName: loan.bankName, loanType: "Personal Loan" },
+        {
+          $set: {
+            bankName: loan.bankName,
+            loanType: "Personal Loan",
+            interestRate: parseFloat(m[0]),
+            processingFee: loan.feeRaw,
+            tenureRange: "1 to 5 years",
+            link: personalLoanUrl,
+            features: ["Instant Approval", "Paperless"]
+          }
+        },
+        { upsert: true }
+      );
     }
 
-    const browser = await puppeteer.launch({ 
-        headless: false, 
-        defaultViewport: null,
-        args: ['--start-maximized'] 
-    });
-    
-    const page = await browser.newPage();
-    const url = '';
-    
-    try {
-        console.log("Navigating to BankBazaar...");
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
-        await new Promise(r => setTimeout(r, 3000));
+    /* ========== HOME LOAN ========== */
+    const homeLoanUrl = "https://www.bankbazaar.com/home-loan.html";
+    console.log("🔎 Scraping Home Loan");
 
-        // --- IMPROVED SCRAPING LOGIC ---
-        const scrapedLoans = await page.evaluate(() => {
-            const results = [];
-            
-            // Find all loan cards
-            const cards = Array.from(document.querySelectorAll('div')).filter(div => 
-                div.className.includes('shadow-lg') && 
-                div.className.includes('border-slate-300') &&
-                div.className.includes('p-3')
-            );
+    await page.goto(homeLoanUrl, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 3000));
 
-            cards.forEach(card => {
-                // FIX: Look for the h4 with 'inline' class, OR fall back to the second h4
-                let bankName = "Unknown Bank";
-                
-                // Try finding the specific class used for names
-                const nameElement = card.querySelector('h4.inline');
-                
-                if (nameElement) {
-                    bankName = nameElement.innerText.trim();
-                } else {
-                    // Fallback: If there are 2 headers, take the second one (usually the name)
-                    const headers = card.querySelectorAll('h4');
-                    if (headers.length > 1) {
-                        bankName = headers[1].innerText.trim();
-                    } else if (headers.length === 1) {
-                        bankName = headers[0].innerText.trim();
-                    }
-                }
+    const homeLoans = await scrapeHomeLoan(page);
+    console.log(`🎉 Found ${homeLoans.length} Home Loans`);
 
-                // Get Rates & Fees
-                const dataBlocks = card.querySelectorAll('.inline-block.mr-1');
-                let interestRaw = "0";
-                let feeRaw = "0";
+    for (const loan of homeLoans) {
+      const m = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+      if (!m) continue;
 
-                dataBlocks.forEach(block => {
-                    const label = block.innerText.toLowerCase();
-                    const valueElement = block.querySelectorAll('p')[1]; 
-                    const valueText = valueElement ? valueElement.innerText.trim() : "";
-
-                    if (label.includes('fixed') || label.includes('floating')) {
-                        interestRaw = valueText;
-                    }
-                    if (label.includes('processing fee')) {
-                        feeRaw = valueText;
-                    }
-                });
-
-                if (bankName !== "Unknown Bank" && interestRaw !== "0") {
-                    results.push({
-                        bankName,
-                        interestRaw,
-                        feeRaw
-                    });
-                }
-            });
-
-            return results;
-        });
-
-        console.log(`🎉 Found ${scrapedLoans.length} loans!`);
-
-        // --- SAVE TO DB ---
-        for (const loan of scrapedLoans) {
-            let cleanRate = 0;
-            const match = loan.interestRaw.match(/(\d+\.\d+)/); 
-            if (match) cleanRate = parseFloat(match[0]);
-
-            if (cleanRate === 0) continue;
-
-            // Remove "Personal Loan" from name to keep it clean (Optional)
-            // e.g. "HDFC Bank Personal Loan" -> "HDFC Bank"
-            const cleanName = loan.bankName.replace(/Personal Loan/i, '').trim();
-
-            const loanEntry = {
-                bankName: cleanName,
-                loanType: "Personal Loan",
-                interestRate: cleanRate,
-                processingFee: loan.feeRaw,
-                tenureRange: "1 to 5 years", 
-                link: url,
-                features: ["Instant Approval", "Paperless"]
-            };
-
-            await BankLoan.create(loanEntry);
-            console.log(`   Saved: ${loanEntry.bankName} @ ${loanEntry.interestRate}%`);
-        }
-
-    } catch (error) {
-        console.error("Scraping Failed:", error);
-    } finally {
-        await browser.close();
-        await mongoose.connection.close();
-        console.log("👋 Scraper Finished.");
+      await BankLoan.updateOne(
+        { bankName: loan.bankName, loanType: "Home Loan" },
+        {
+          $set: {
+            bankName: loan.bankName,
+            loanType: "Home Loan",
+            interestRate: parseFloat(m[0]),
+            processingFee: loan.feeRaw,
+            tenureRange: loan.tenureRaw,
+            link: homeLoanUrl,
+            features: ["Long Tenure"]
+          }
+        },
+        { upsert: true }
+      );
     }
+
+    /* ========== CAR LOAN ========== */
+    const carLoanUrl = "https://www.bankbazaar.com/car-loan.html";
+    console.log("🔎 Scraping Car Loan");
+
+    await page.goto(carLoanUrl, { waitUntil: 'domcontentloaded' });
+    await new Promise(r => setTimeout(r, 3000));
+
+    const carLoans = await scrapeCarLoan(page);
+    console.log(`🎉 Found ${carLoans.length} Car Loans`);
+
+    for (const loan of carLoans) {
+      const m = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+      if (!m) continue;
+
+      await BankLoan.updateOne(
+        { bankName: loan.bankName, loanType: "Car Loan" },
+        {
+          $set: {
+            bankName: loan.bankName,
+            loanType: "Car Loan",
+            interestRate: parseFloat(m[0]),
+            processingFee: "Varies",
+            tenureRange: loan.tenureRaw,
+            link: carLoanUrl,
+            features: ["New & Used Cars"]
+          }
+        },
+        { upsert: true }
+      );
+    }
+    /* ========== TWO WHEELER LOAN ========== */
+
+const twoWheelerLoanUrl = "https://www.bankbazaar.com/two-wheeler-loan.html";
+console.log("🔎 Scraping Two Wheeler Loan");
+
+await page.goto(twoWheelerLoanUrl, { waitUntil: 'domcontentloaded' });
+await new Promise(r => setTimeout(r, 3000));
+
+const twLoans = await scrapeTwoWheelerLoan(page);
+console.log(`🎉 Found ${twLoans.length} Two Wheeler Loans`);
+
+for (const loan of twLoans) {
+  const match = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+  if (!match) continue;
+
+  const cleanRate = parseFloat(match[0]);
+  const cleanName = loan.bankName.replace(/Two Wheeler Loan/i, '').trim();
+
+  await BankLoan.updateOne(
+    { bankName: cleanName, loanType: "Two Wheeler Loan" },
+    {
+      $set: {
+        bankName: cleanName,
+        loanType: "Two Wheeler Loan",
+        interestRate: cleanRate,
+        processingFee: loan.feeRaw,
+        tenureRange: loan.loanAmountRaw,
+        link: twoWheelerLoanUrl,
+        features: ["Fast Approval", "Low Down Payment"]
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log(`✅ Saved/Updated Two Wheeler Loan: ${cleanName}`);
+}
+/* ========== USED CAR LOAN ========== */
+
+const usedCarLoanUrl = "https://www.bankbazaar.com/used-car-loan.html";
+console.log("🔎 Scraping Used Car Loan");
+
+await page.goto(usedCarLoanUrl, { waitUntil: 'domcontentloaded' });
+await new Promise(r => setTimeout(r, 3000));
+
+const usedCarLoans = await scrapeUsedCarLoan(page);
+console.log(`🎉 Found ${usedCarLoans.length} Used Car Loans`);
+
+for (const loan of usedCarLoans) {
+  const match = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+  if (!match) continue; // skip "Contact the bank"
+
+  const cleanRate = parseFloat(match[0]);
+  const cleanName = loan.bankName
+    .replace(/Used Car Loan/i, '')
+    .trim();
+
+  await BankLoan.updateOne(
+    { bankName: cleanName, loanType: "Used Car Loan" },
+    {
+      $set: {
+        bankName: cleanName,
+        loanType: "Used Car Loan",
+        interestRate: cleanRate,
+        processingFee: "Varies",
+        tenureRange: loan.tenureRaw,
+        link: usedCarLoanUrl,
+        features: ["Pre-Owned Vehicles"]
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log(`✅ Saved/Updated Used Car Loan: ${cleanName}`);
+}
+/* ========== EDUCATION LOAN ========== */
+
+const educationLoanUrl = "https://www.bankbazaar.com/education-loan.html";
+console.log("🔎 Scraping Education Loan");
+
+await page.goto(educationLoanUrl, { waitUntil: 'domcontentloaded' });
+await new Promise(r => setTimeout(r, 3000));
+
+const educationLoans = await scrapeEducationLoan(page);
+console.log(`🎉 Found ${educationLoans.length} Education Loans`);
+
+for (const loan of educationLoans) {
+  const match = loan.interestRaw.match(/(\d+(\.\d+)?)/);
+  if (!match) continue; // skip non-numeric cases
+
+  const cleanRate = parseFloat(match[0]);
+  const cleanName = loan.bankName
+    .replace(/Education Loan/i, '')
+    .trim();
+
+  await BankLoan.updateOne(
+    { bankName: cleanName, loanType: "Education Loan" },
+    {
+      $set: {
+        bankName: cleanName,
+        loanType: "Education Loan",
+        interestRate: cleanRate,
+        processingFee: loan.processingFee,
+        tenureRange: "Up to course + repayment period",
+        link: educationLoanUrl,
+        features: ["Studies in India & Abroad"]
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log(`✅ Saved/Updated Education Loan: ${cleanName}`);
+}
+
+  } catch (err) {
+    console.error("❌ Scraper Error:", err);
+  } finally {
+    await browser.close();
+    await mongoose.connection.close();
+    console.log("👋 Scraper Finished");
+  }
 };
 
 scrapeBankBazaar();
