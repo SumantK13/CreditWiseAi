@@ -1,85 +1,96 @@
 import pandas as pd
 import numpy as np
-import random
 
-# Set seed for reproducibility
-np.random.seed(42)
+# 1. Load your base data
+df = pd.read_csv('loan_data.csv')
 
-def generate_loan_data(num_samples=10000):
-    data = []
-    
-    employment_types = ['Salaried', 'Self-Employed', 'Student']
-    
-    for _ in range(num_samples):
-        # 1. Generate Basic Profiles
-        # Age: 21 to 60 (Standard working age for loans)
-        age = np.random.randint(21, 60) 
+# --- STEP 1: GENERATE SYNTHETIC BANK FEATURES ---
+np.random.seed(42) # For consistent results
 
-        monthly_income = np.random.randint(15000, 200000) 
-        current_emis = np.random.randint(0, int(monthly_income * 0.4))
-        
-        credit_score = int(np.random.normal(700, 50))
-        credit_score = max(300, min(900, credit_score))
-        
-        emp_type = np.random.choice(employment_types, p=[0.6, 0.3, 0.1])
-        
-        loan_amount = np.random.randint(50000, 5000000)
-        tenure_years = np.random.randint(1, 15)
-        
-        # --- 2. THE "FUZZY" UNDERWRITING LOGIC ---
-        
-        # Calculate Ratios
-        total_obligation = current_emis + (loan_amount * 0.015)
-        foir = (total_obligation / monthly_income) * 100
-        
-        # Base Probability Score
-        probability = 0
-        
-        # A. Credit Score Impact (Strongest Factor)
-        if credit_score > 750: probability += 0.50
-        elif credit_score > 650: probability += 0.30
-        else: probability -= 0.20
-        
-        # B. FOIR Impact (Debt Burden)
-        if foir < 40: probability += 0.30
-        elif foir < 60: probability += 0.10
-        else: probability -= 0.40
-        
-        # C. Employment Stability
-        if emp_type == 'Salaried': probability += 0.10
-        if emp_type == 'Student': probability -= 0.15
-        
-        # D. Loan to Income Ratio
-        if loan_amount > (monthly_income * 60): 
-            probability -= 0.20
+# A. User Age (21 to 59)
+df['Age'] = np.random.randint(21, 60, size=len(df))
 
-        # E. Age Impact (NEW LOGIC)
-        # Too young (<25) or near retirement (>55) is slightly riskier
-        if age < 25: probability -= 0.05
-        elif age > 55: probability -= 0.05
-        else: probability += 0.05 # Prime working years
-            
-        # --- 3. ADD "HUMAN NOISE" ---
-        noise = np.random.uniform(-0.10, 0.10)
-        final_score = probability + noise
-        
-        # 4. Final Decision
-        loan_status = 1 if final_score > 0.5 else 0
-        
-        # Add 'age' to the row
-        data.append([age, monthly_income, current_emis, emp_type, credit_score, loan_amount, tenure_years, loan_status])
+# B. Bank Interest Rate (8.5% to 18.0%)
+# Simulates different bank offers
+df['Bank_Interest_Rate'] = np.round(np.random.uniform(8.5, 18.0, size=len(df)), 2)
 
-    # Convert to DataFrame (Added 'Age' to columns)
-    df = pd.DataFrame(data, columns=[
-        'Age', 'Monthly_Income', 'Current_EMIs', 'Employment_Type', 
-        'Credit_Score', 'Loan_Amount', 'Tenure_Years', 'Loan_Status'
-    ])
-    
-    return df
+# C. Processing Fee (0.5% to 3.0% of Loan Amount)
+# Some banks are expensive!
+df['Processing_Fee_Percentage'] = np.round(np.random.uniform(0.5, 3.0, size=len(df)), 2)
 
-if __name__ == "__main__":
-    print("Generating synthetic data with Age...")
-    df = generate_loan_data(10000)
-    df.to_csv('loan_data.csv', index=False)
-    print("✅ Data generated! Saved as 'loan_data.csv'")
-    print(df.head())
+# D. Tenure Constraints (The "Hard" Rules)
+# Min Tenure: Usually 1 to 3 years
+df['Minimum_Tenure_Allowed'] = np.random.randint(1, 4, size=len(df))
+# Max Tenure: Usually 10 to 30 years
+df['Maximum_Tenure_Allowed'] = np.random.randint(10, 31, size=len(df))
+
+
+# --- STEP 2: CALCULATE REAL-WORLD METRICS ---
+
+# Calculate EMI based on the *Specific* Bank Interest Rate
+def calculate_emi(row):
+    P = row['Loan_Amount']
+    r = (row['Bank_Interest_Rate'] / 12) / 100
+    n = row['Tenure_Years'] * 12
+    if r == 0: return P/n
+    return P * r * ((1 + r)**n) / (((1 + r)**n) - 1)
+
+df['Monthly_EMI'] = df.apply(calculate_emi, axis=1)
+
+# Calculate FOIR (Affordability)
+# (Current Debt + New EMI) / Monthly Income
+df['Total_Monthly_Debt'] = df['Current_EMIs'] + df['Monthly_EMI']
+df['FOIR'] = (df['Total_Monthly_Debt'] / df['Monthly_Income']) * 100
+
+
+# --- STEP 3: APPLY "SMART LABELS" (TEACHING THE AI) ---
+# We flip the Loan_Status to 0 (Rejected) if the constraints are violated.
+
+def smart_label(row):
+    # 1. HARD CONSTRAINT: Tenure Violated?
+    # If user asks for 5 years but bank demands min 7 -> REJECT
+    if row['Tenure_Years'] < row['Minimum_Tenure_Allowed']:
+        return 0
+    # If user asks for 25 years but bank allows max 20 -> REJECT
+    if row['Tenure_Years'] > row['Maximum_Tenure_Allowed']:
+        return 0
+
+    # 2. HARD CONSTRAINT: Affordability (FOIR)
+    # If the Interest Rate is so high that FOIR > 60% -> REJECT
+    if row['FOIR'] > 60:
+        return 0
+
+    # 3. SOFT CONSTRAINT: Processing Fee High + Borderline Credit
+    # If Fee > 2.5% AND Credit Score is weak (< 700), user likely declines or bank sees risk
+    if row['Processing_Fee_Percentage'] > 2.5 and row['Credit_Score'] < 700:
+        return 0
+
+    # 4. HARD CONSTRAINT: Age Eligibility
+    # If (Age + Loan Tenure) > 60 (Retirement age), usually rejected
+    if (row['Age'] + row['Tenure_Years']) > 60:
+        return 0
+
+    # 5. BASE LOGIC: Keep original label if it passes all checks above
+    return row['Loan_Status']
+
+# Apply the new logic
+df['Loan_Status'] = df.apply(smart_label, axis=1)
+
+
+# --- STEP 4: CLEANUP & SAVE ---
+# We keep the Input features and the Target. 
+# We DROP 'Monthly_EMI' and 'FOIR' because the Model should LEARN to calculate these correlations itself.
+final_features = [
+    'Monthly_Income', 'Current_EMIs', 'Employment_Type', 'Credit_Score', 
+    'Loan_Amount', 'Tenure_Years', 'Age', 
+    'Bank_Interest_Rate', 'Processing_Fee_Percentage', 
+    'Minimum_Tenure_Allowed', 'Maximum_Tenure_Allowed', 
+    'Loan_Status'
+]
+
+final_df = df[final_features]
+
+final_df.to_csv('enhanced_loan_data.csv', index=False)
+print("✅ enhanced_loan_data.csv created successfully!")
+print("Columns included:", final_features)
+print(final_df.head(10))
