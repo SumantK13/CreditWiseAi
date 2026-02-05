@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // 1. Import useLocation
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Chrome, Github, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { BackgroundBeams } from '@/components/ui/background-beams';
-import axios from 'axios'; 
+import axios from 'axios';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // 2. Initialize the hook
   const [isLogin, setIsLogin] = useState(true);
   
   const [formData, setFormData] = useState({
@@ -21,31 +22,27 @@ const Auth = () => {
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-
   const onSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-   
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const endpoint = `${API_URL}/auth/${isLogin ? 'login' : 'signup'}`; 
+    const endpoint = `${API_URL}/auth/${isLogin ? 'login' : 'signup'}`;
     
     const bodyData = isLogin ? { email, password } : { name, email, password };
 
     try {
       const res = await axios.post(endpoint, bodyData);
 
-      // SUCCESS:
-      // Axios stores the actual server response in 'res.data'
-      localStorage.setItem('token', res.data.authToken);
+      localStorage.setItem('token', res.data.token);
       
-      // Redirect
-      navigate('/dashboard');
+      // 3. THE FIX: Check if we have a specific destination, otherwise go to Dashboard
+      // "location.state.from" comes from the Navbar link we just added
+      const destination = location.state?.from || '/dashboard';
+      navigate(destination);
       
     } catch (err) {
-      // ERROR HANDLING:
-      // Axios wraps the backend error response in 'err.response'
       const errorMessage = 
         err.response?.data?.msg || 
         err.response?.data?.errors?.[0]?.msg || 
@@ -120,7 +117,6 @@ const Auth = () => {
               </p>
             </div>
 
-            {/* Error Message Alert */}
             <AnimatePresence>
               {error && (
                 <motion.div 
@@ -135,9 +131,7 @@ const Auth = () => {
               )}
             </AnimatePresence>
 
-            {/* ACTUAL FORM */}
             <form className="space-y-4" onSubmit={onSubmit}>
-              
               <AnimatePresence mode="wait">
                 {!isLogin && (
                   <motion.div
@@ -191,7 +185,7 @@ const Auth = () => {
                 <button 
                   onClick={() => {
                     setIsLogin(!isLogin);
-                    setError(''); // Clear errors when toggling
+                    setError('');
                   }}
                   className="ml-2 text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
                 >

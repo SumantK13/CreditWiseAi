@@ -1,20 +1,37 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
+import Auth from './pages/Auth';
 import LoanForm from './pages/LoanForm';
 import Dashboard from './pages/Dashboard';
-import Auth from './pages/Auth';
+import ProtectedRoute from './components/ProtectedRoute'; 
 
 function App() {
   return (
     <Router>
-      {/* 1. CHANGED: Global background is now Black (was bg-slate-50) */}
       <div className="min-h-screen bg-black text-white font-sans">
-
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<Landing />} />
-          <Route path="/check-eligibility" element={<LoanForm />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path='/auth' element={<Auth/>}/>
+          <Route path="/auth" element={<Auth />} />
+
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/check-eligibility" 
+            element={
+              <ProtectedRoute>
+                <LoanForm />
+              </ProtectedRoute>
+            } 
+          />
+
         </Routes>
       </div>
     </Router>
