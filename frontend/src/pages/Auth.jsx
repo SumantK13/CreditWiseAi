@@ -35,7 +35,11 @@ const Auth = () => {
     try {
       const res = await axios.post(endpoint, bodyData);
 
-      localStorage.setItem('token', res.data.token);
+      // Backend returns `authToken`, store it consistently as `token`
+      const receivedToken = res.data.authToken || res.data.token;
+      if (receivedToken) {
+        localStorage.setItem('token', receivedToken);
+      }
       
       // 3. THE FIX: Check if we have a specific destination, otherwise go to Dashboard
       // "location.state.from" comes from the Navbar link we just added

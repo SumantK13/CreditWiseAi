@@ -1,5 +1,6 @@
 import axios from 'axios';
 import BankLoan from '../models/BankLoan.js';
+import UserAnalysis from '../models/UserAnalysis.js';
 
 export const getLoanRecommendations = async (req, res) => {
     try {
@@ -113,6 +114,7 @@ export const getLoanRecommendations = async (req, res) => {
             return {
                 _id: loan._id,
                 bankName: loan.bankName,
+                loanType: loan.loanType,
                 interestRate: loan.interestRate,
                 processingFee: loan.processingFee, // Send original string to Frontend for display
                 link: loan.link,
@@ -141,11 +143,63 @@ export const getLoanRecommendations = async (req, res) => {
             return a.interestRate - b.interestRate;
         });
 
-        // 5. SEND RESPONSE
+        // 5. OPTIONAL: Persist the latest analysis for the logged-in user
+        try {
+            if (req.user?.id) {
+                const inputsToStore = {
+                    monthlyIncome,
+                    currentEMIs,
+                    employmentType,
+                    creditScore,
+                    loanAmount,
+                    tenureYears,
+                    age,
+                };
+
+                await UserAnalysis.findOneAndUpdate(
+                    { user: req.user.id },
+                    {
+                        user: req.user.id,
+                        inputs: inputsToStore,
+                        results: analyzedLoans,
+                        createdAt: new Date(),
+                    },
+                    { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+            }
+        } catch (persistError) {
+            console.error('Failed to persist user analysis:', persistError.message);
+            // Do not fail the request just because persistence failed
+        }
+
+        // 6. SEND RESPONSE
         res.status(200).json(analyzedLoans);
 
     } catch (error) {
         console.error("Server Error in recommendController:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// Get the latest saved analysis for the logged-in user
+export const getLastUserAnalysis = async (req, res) => {
+    try {
+        if (!req.user?.id) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        const analysis = await UserAnalysis.findOne({ user: req.user.id });
+
+        if (!analysis) {
+            return res.status(404).json({ message: 'No analysis found for this user' });
+        }
+
+        return res.status(200).json({
+            results: analysis.results,
+            inputs: analysis.inputs,
+        });
+    } catch (error) {
+        console.error('Error fetching last user analysis:', error.message);
+        return res.status(500).json({ message: 'Internal Server Error' });
     }
 };

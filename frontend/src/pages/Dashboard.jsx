@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
@@ -7,23 +7,106 @@ import {
   Banknote, Percent, Calendar, ChevronRight 
 } from 'lucide-react';
 
+import axios from 'axios';
+
 const Dashboard = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // If accessed directly without data, redirect to form
-  if (!state?.results) {
+  const [data, setData] = useState(
+    state?.results ? { results: state.results, inputs: state.inputs } : null
+  );
+  const [loading, setLoading] = useState(!state?.results);
+  const [error, setError] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
+
+  // On direct visits, try to load the latest saved analysis for the logged-in user
+  useEffect(() => {
+    if (state?.results) return; // we already have fresh data from the form
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchLastAnalysis = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const res = await axios.get(`${API_URL}/recommend/last`, {
+          headers: { 'x-auth-token': token },
+        });
+        setData({ results: res.data.results, inputs: res.data.inputs });
+      } catch (err) {
+        if (err.response?.status === 404) {
+          // No previous analysis for this user – just show the empty state
+        } else {
+          console.error('Failed to fetch last analysis:', err);
+          setError('Failed to load your last analysis. You may need to run a new check.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLastAnalysis();
+  }, [state]);
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4">
+        <Navbar />
+        <div className="mt-24 text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading your last analysis...</h2>
+          <p className="text-neutral-400 text-sm">
+            Please wait while we retrieve your saved eligibility check.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If accessed directly without data and nothing saved, show prompt to start a new check
+  if (!data?.results) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4">
+        <Navbar />
         <h2 className="text-2xl font-bold mb-4">No analysis data found</h2>
-        <Link to="/check-eligibility" className="px-6 py-3 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500">
+        {error && <p className="text-red-400 mb-2 text-sm">{error}</p>}
+        <Link
+          to="/check-eligibility"
+          className="px-6 py-3 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500"
+        >
           Start New Check
         </Link>
       </div>
     );
   }
 
-  const { results: loans, inputs } = state;
+  const { results: loans, inputs } = data;
+
+  // Normalize a loanType string to a key for filtering
+  const normalizeType = (value = '') => value.toLowerCase().trim();
+
+  // Fixed list of types the user can select
+  const filterOptions = [
+    { id: 'all', label: 'All Loans' },
+    { id: 'home', label: 'Home Loan' },
+    { id: 'car', label: 'Car Loan' },
+    { id: 'education', label: 'Education Loan' },
+    { id: 'personal', label: 'Personal Loan' },
+  ];
+
+  const filteredLoans = loans.filter((loan) => {
+    if (selectedType === 'all') return true;
+
+    // Backwards compatibility: if loanType is missing, treat it as "personal"
+    if (!loan.loanType && selectedType === 'personal') return true;
+
+    const key = normalizeType(loan.loanType);
+    // Match if the loan type string contains the selected keyword
+    return key.includes(selectedType);
+  });
 
   // Helper for Status Colors
   const getStatusColor = (prob) => {
@@ -58,20 +141,43 @@ const Dashboard = () => {
                 Analysis Results
               </h1>
               <p className="text-neutral-400">
-                Found <span className="text-white font-bold">{loans.length} lenders</span> matching your profile.
+                Found{' '}
+                <span className="text-white font-bold">
+                  {filteredLoans.length} lenders
+                </span>{' '}
+                matching your profile.
               </p>
             </div>
             
-            {/* Quick Stats Summary */}
-            <div className="flex gap-4 p-4 rounded-2xl bg-neutral-900 border border-white/5">
-              <div>
-                <div className="text-xs text-neutral-500 uppercase tracking-wider">Loan Amount</div>
-                <div className="text-xl font-bold">₹ {(inputs.loanAmount / 100000).toFixed(1)} Lakh</div>
+            {/* Quick Stats + Filter */}
+            <div className="flex flex-col items-stretch md:flex-row md:items-center gap-4">
+              <div className="flex gap-4 p-4 rounded-2xl bg-neutral-900 border border-white/5">
+                <div>
+                  <div className="text-xs text-neutral-500 uppercase tracking-wider">Loan Amount</div>
+                  <div className="text-xl font-bold">₹ {(inputs.loanAmount / 100000).toFixed(1)} Lakh</div>
+                </div>
+                <div className="w-[1px] bg-white/10"></div>
+                <div>
+                  <div className="text-xs text-neutral-500 uppercase tracking-wider">Tenure</div>
+                  <div className="text-xl font-bold">{inputs.tenureYears} Years</div>
+                </div>
               </div>
-              <div className="w-[1px] bg-white/10"></div>
-              <div>
-                <div className="text-xs text-neutral-500 uppercase tracking-wider">Tenure</div>
-                <div className="text-xl font-bold">{inputs.tenureYears} Years</div>
+
+              {/* Filter Pills */}
+              <div className="flex flex-wrap gap-2">
+                {filterOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setSelectedType(opt.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      selectedType === opt.id
+                        ? 'bg-cyan-500 text-black border-cyan-400'
+                        : 'bg-neutral-900 text-neutral-300 border-white/10 hover:border-cyan-400/60 hover:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -79,7 +185,13 @@ const Dashboard = () => {
 
         {/* RESULTS GRID */}
         <div className="grid grid-cols-1 gap-6">
-          {loans.map((loan, index) => (
+          {filteredLoans.length === 0 && (
+            <div className="col-span-1 rounded-2xl bg-neutral-900 border border-white/10 p-6 text-center text-sm text-neutral-400">
+              No lenders found for the selected loan type. Try a different filter.
+            </div>
+          )}
+
+          {filteredLoans.map((loan, index) => (
             <motion.div
               key={loan._id || index}
               initial={{ opacity: 0, y: 20 }}
