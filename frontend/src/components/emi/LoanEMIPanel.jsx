@@ -35,6 +35,21 @@ export default function LoanEMIPanel({
       extraPayment
     );
   }, [loanAmount, interestRate, tenure, extraPayment]);
+  const updatedTotals = useMemo(() => {
+  if (!schedule.length) return null;
+
+  const totalInterest = schedule.reduce(
+    (sum, row) => sum + row.interest,
+    0
+  );
+
+  const totalPayment = loanAmount + totalInterest;
+
+  return {
+    totalInterest,
+    totalPayment,
+  };
+}, [schedule, loanAmount]);
 
   // PREMIUM ANALYTICS
   const newTenure = schedule.length;
@@ -55,10 +70,14 @@ export default function LoanEMIPanel({
         <Card title="Total Payment" value={result.totalPayment} color="text-white"/>
       </div>
 
-      <EMIPieChart
-        principal={loanAmount}
-        interest={result.totalInterest}
-      />
+     <EMIPieChart
+  principal={loanAmount}
+  interest={
+    updatedTotals
+      ? updatedTotals.totalInterest
+      : result.totalInterest
+  }
+/>
 
       {/* PREPAYMENT */}
       <div className="mt-6 space-y-3">
