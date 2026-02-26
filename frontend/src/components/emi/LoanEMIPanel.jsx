@@ -35,6 +35,22 @@ export default function LoanEMIPanel({
       extraPayment
     );
   }, [loanAmount, interestRate, tenure, extraPayment]);
+  // NEW: derive totals from updated schedule
+const dynamicTotals = useMemo(() => {
+  if (!schedule.length) return null;
+
+  const totalPayment = schedule.reduce(
+    (sum, row) => sum + row.emi,
+    0
+  );
+
+  const totalInterest = totalPayment - loanAmount;
+
+  return {
+    totalPayment,
+    totalInterest,
+  };
+}, [schedule, loanAmount]);
   const updatedTotals = useMemo(() => {
   if (!schedule.length) return null;
 
@@ -66,17 +82,22 @@ export default function LoanEMIPanel({
       {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card title="Monthly EMI" value={result.emi} color="text-cyan-400"/>
-        <Card title="Total Interest" value={result.totalInterest} color="text-orange-400"/>
-        <Card title="Total Payment" value={result.totalPayment} color="text-white"/>
+       <Card
+  title="Total Interest"
+  value={dynamicTotals?.totalInterest || result.totalInterest}
+  color="text-orange-400"
+/>
+
+<Card
+  title="Total Payment"
+  value={dynamicTotals?.totalPayment || result.totalPayment}
+  color="text-white"
+/>
       </div>
 
-     <EMIPieChart
+    <EMIPieChart
   principal={loanAmount}
-  interest={
-    updatedTotals
-      ? updatedTotals.totalInterest
-      : result.totalInterest
-  }
+  interest={dynamicTotals?.totalInterest || result.totalInterest}
 />
 
       {/* PREPAYMENT */}
