@@ -6,7 +6,7 @@ import {
   ArrowLeft, CheckCircle2, XCircle, AlertTriangle, 
   Banknote, Percent, Calendar, ChevronRight 
 } from 'lucide-react';
-
+import LoanEMIPanel from "@/components/emi/LoanEMIPanel";
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(!state?.results);
   const [error, setError] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [openEmi, setOpenEmi] = useState(null);
 
   // On direct visits, try to load the latest saved analysis for the logged-in user
   useEffect(() => {
@@ -192,103 +193,107 @@ const Dashboard = () => {
           )}
 
           {filteredLoans.map((loan, index) => (
-            <motion.div
-              key={loan._id || index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="group relative bg-neutral-900/40 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 hover:border-cyan-500/30 hover:bg-neutral-900/60 transition-all duration-300"
-            >
-              <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-                
-                {/* 1. BANK INFO */}
-                <div className="flex-1 min-w-[200px]">
-                  <h3 className="text-2xl font-bold text-white mb-1">{loan.bankName}</h3>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.approvalProbability)}`}>
-                      {loan.status}
-                    </span>
-                    {loan.rejectionReason && (
-                      <span className="text-red-400 flex items-center gap-1">
-                        <AlertTriangle size={12} /> {loan.rejectionReason}
-                      </span>
-                    )}
-                  </div>
-                </div>
+  <motion.div
+    key={loan._id || index}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: index * 0.1 }}
+    className="group relative bg-neutral-900/40 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 hover:border-cyan-500/30 hover:bg-neutral-900/60 transition-all duration-300"
+  >
+    <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+      
+      {/* 1. BANK INFO */}
+      <div className="flex-1 min-w-[200px]">
+        <h3 className="text-2xl font-bold text-white mb-1">{loan.bankName}</h3>
+        <div className="flex items-center gap-2 text-sm">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.approvalProbability)}`}>
+            {loan.status}
+          </span>
+        </div>
+      </div>
 
-                {/* 2. NUMBERS */}
-                <div className="flex-1 grid grid-cols-2 gap-4 w-full md:w-auto">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
-                      <Percent size={14} /> Interest Rate
-                    </div>
-                    <div className="text-xl font-bold text-white">{loan.interestRate}%</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
-                      <Banknote size={14} /> Monthly EMI
-                    </div>
-                    <div className="text-xl font-bold text-white">₹ {loan.monthlyEMI.toLocaleString()}</div>
-                  </div>
-                </div>
+      {/* 2. NUMBERS */}
+      <div className="flex-1 grid grid-cols-2 gap-4 w-full md:w-auto">
+        <div>
+          <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
+            <Percent size={14} /> Interest Rate
+          </div>
+          <div className="text-xl font-bold text-white">{loan.interestRate}%</div>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 text-neutral-400 text-xs mb-1">
+            <Banknote size={14} /> Monthly EMI
+          </div>
+          <div className="text-xl font-bold text-white">
+            ₹ {loan.monthlyEMI.toLocaleString()}
+          </div>
+        </div>
+      </div>
 
-                {/* 3. PROBABILITY GAUGE (The Hero) */}
-                <div className="w-full md:w-64">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-neutral-400">Approval Chance</span>
-                    <span className={`font-bold ${
-                      loan.approvalProbability > 70 ? 'text-emerald-400' : 
-                      loan.approvalProbability > 40 ? 'text-yellow-400' : 'text-red-400'
-                    }`}>
-                      {loan.approvalProbability.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${loan.approvalProbability}%` }}
-                      transition={{ duration: 1, delay: 0.5 + (index * 0.1) }}
-                      className={`h-full rounded-full ${getProgressBarColor(loan.approvalProbability)}`}
-                    />
-                  </div>
-                </div>
+      {/* 3. PROBABILITY */}
+      <div className="w-full md:w-64">
+        <div className="flex justify-between text-sm mb-2">
+          <span className="text-neutral-400">Approval Chance</span>
+          <span className="font-bold text-cyan-400">
+            {loan.approvalProbability.toFixed(1)}%
+          </span>
+        </div>
+        <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${loan.approvalProbability}%` }}
+            transition={{ duration: 1 }}
+            className="h-full bg-cyan-500 rounded-full"
+          />
+        </div>
+      </div>
 
-                {/* 4. ACTION */}
-                <div className="w-full md:w-auto flex justify-end">
-                   {loan.link ? (
-                     <a 
-                       href={loan.link} 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-black font-bold hover:bg-neutral-200 transition-colors"
-                     >
-                       Apply <ChevronRight size={16} />
-                     </a>
-                   ) : (
-                     <button disabled className="px-5 py-3 rounded-xl bg-neutral-800 text-neutral-500 font-bold cursor-not-allowed">
-                       Unavailable
-                     </button>
-                   )}
-                </div>
+      {/* 4. APPLY BUTTON */}
+      <div className="w-full md:w-auto flex justify-end">
+        {loan.link ? (
+          <a
+            href={loan.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-black font-bold hover:bg-neutral-200 transition-colors"
+          >
+            Apply <ChevronRight size={16} />
+          </a>
+        ) : (
+          <button
+            disabled
+            className="px-5 py-3 rounded-xl bg-neutral-800 text-neutral-500 font-bold cursor-not-allowed"
+          >
+            Unavailable
+          </button>
+        )}
+      </div>
+    </div>
 
-              </div>
-              
-              {/* Optional: Show Features or Processing Fee */}
-              <div className="mt-6 pt-6 border-t border-white/5 flex flex-wrap gap-4 text-xs text-neutral-500">
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                  Processing Fee: {loan.processingFee}
-                </div>
-                {loan.foir > 0 && (
-                  <div className="flex items-center gap-1">
-                     <span className={`w-1.5 h-1.5 rounded-full ${loan.foir > 50 ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
-                     Debt Ratio Impact: {loan.foir}%
-                  </div>
-                )}
-              </div>
+    {/* ---------- EMI TOGGLE BUTTON ---------- */}
+    <div className="mt-6 border-t border-white/5 pt-6">
+  <button
+    onClick={() =>
+      navigate(`/emi/${loan._id || index}`, {
+        state: { loan, inputs }
+      })
+    }
+    className="px-5 py-3 rounded-xl bg-cyan-500 text-black font-bold hover:bg-cyan-400 transition"
+  >
+    EMI Details
+  </button>
 
-            </motion.div>
-          ))}
+      {/* ---------- EMI PANEL ---------- */}
+      {openEmi === index && (
+        <LoanEMIPanel
+          loanAmount={inputs.loanAmount}
+          interestRate={loan.interestRate}
+          tenure={inputs.tenureYears}
+        />
+      )}
+    </div>
+  </motion.div>
+))}
         </div>
 
       </main>

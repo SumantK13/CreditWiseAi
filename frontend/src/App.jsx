@@ -4,7 +4,7 @@ import Auth from './pages/Auth';
 import LoanForm from './pages/LoanForm';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute'; 
-
+import EMIPage from "@/pages/EMIPage";
 
 function App() {
   return (
@@ -23,6 +23,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/emi/:loanId" element={<EMIPage />} />
           
           <Route 
             path="/check-eligibility" 
