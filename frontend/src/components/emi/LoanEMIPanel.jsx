@@ -1,5 +1,3 @@
-// src/components/emi/LoanEMIPanel.jsx
-
 import React, { useMemo, useState } from "react";
 import EMIPieChart from "./EMIPieChart";
 import AmortizationTable from "./AmortizationTable";
@@ -17,8 +15,16 @@ export default function LoanEMIPanel({
   const [extraPaymentInput, setExtraPaymentInput] = useState("");
   const [extraPayment, setExtraPayment] = useState(0);
 
-  const [tenureYearsInput, setTenureYearsInput] = useState(tenure);
-  const [tenureMonthsInput, setTenureMonthsInput] = useState(0);
+  // Proper split of tenure
+  const [tenureYearsInput, setTenureYearsInput] = useState(
+    Math.floor(tenure)
+  );
+
+  const [tenureMonthsInput, setTenureMonthsInput] = useState(
+    Math.round((tenure % 1) * 12)
+  );
+
+  const [appliedTenure, setAppliedTenure] = useState(tenure);
 
   const valid =
     loanAmount > 0 &&
@@ -26,19 +32,11 @@ export default function LoanEMIPanel({
     tenure > 0 &&
     interestRate < 50;
 
-  // ===== BASE EMI =====
   const baseResult = useMemo(() => {
     if (!valid) return null;
     return calculateEMI(loanAmount, interestRate, tenure);
   }, [loanAmount, interestRate, tenure, valid]);
 
-  // ===== APPLIED TENURE (if tenure mode selected) =====
-  const appliedTenure =
-    mode === "tenure"
-      ? tenureYearsInput + tenureMonthsInput / 12
-      : tenure;
-
-  // ===== SCHEDULE =====
   const schedule = useMemo(() => {
     if (!valid) return [];
 
@@ -71,7 +69,6 @@ export default function LoanEMIPanel({
     valid,
   ]);
 
-  // ===== DYNAMIC STATS =====
   const dynamicStats = useMemo(() => {
     if (!schedule.length) return null;
 
@@ -110,12 +107,11 @@ export default function LoanEMIPanel({
   return (
     <div className="mt-6 rounded-3xl bg-neutral-900/60 border border-white/10 p-6">
 
-      {/* ===== SUMMARY + PIE ===== */}
+      {/* SUMMARY + PIE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
 
-        {/* LEFT CARD */}
+        {/* LEFT */}
         <div className="bg-neutral-900 border border-white/10 rounded-3xl p-8">
-
           <h3 className="text-sm text-neutral-400 mb-6 font-semibold">
             Loan Summary
           </h3>
@@ -125,22 +121,36 @@ export default function LoanEMIPanel({
           <Metric label="Total Interest" value={dynamicStats?.totalInterest || baseResult?.totalInterest || 0} color="text-orange-400" />
           <Metric label="Total Payment" value={dynamicStats?.totalPayment || baseResult?.totalPayment || 0} color="text-emerald-400" />
 
-          {interestSaved > 0 && (
-            <div className="mt-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <div className="text-sm text-emerald-400 font-semibold">
-                🎉 You Save ₹ {interestSaved.toLocaleString()}
-              </div>
-              <div className="text-xs text-neutral-400 mt-1">
-                Loan closes {monthsSaved} months earlier
-              </div>
-            </div>
-          )}
+          {/* Savings / Warning */}
+          {dynamicStats && (
+            <>
+              {interestSaved > 0 && (
+                <div className="mt-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="text-sm text-emerald-400 font-semibold">
+                    🎉 You Save ₹ {interestSaved.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-neutral-400 mt-1">
+                    Loan closes {monthsSaved} months earlier
+                  </div>
+                </div>
+              )}
 
+              {monthsSaved < 0 && (
+                <div className="mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <div className="text-sm text-red-400 font-semibold">
+                    ⚠ Loan Duration Increased
+                  </div>
+                  <div className="text-xs text-neutral-400 mt-1">
+                    You will pay ₹ {Math.abs(interestSaved).toLocaleString()} more interest
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* RIGHT CARD */}
+        {/* RIGHT */}
         <div className="bg-neutral-900 border border-white/10 rounded-3xl p-8">
-
           <h3 className="text-sm text-neutral-400 mb-6 font-semibold">
             Loan Breakdown
           </h3>
@@ -155,11 +165,10 @@ export default function LoanEMIPanel({
               }
             />
           </div>
-
         </div>
       </div>
 
-      {/* ===== STRATEGY SECTION ===== */}
+      {/* STRATEGY */}
       <div className="space-y-4 mb-6">
         <h3 className="text-sm text-neutral-400 font-semibold">
           Choose Your Repayment Plan
@@ -168,7 +177,7 @@ export default function LoanEMIPanel({
         <div className="flex gap-4">
           <button
             onClick={() => setMode("extra")}
-            className={`px-4 py-2 rounded-xl text-sm ${
+            className={`px-4 py-2 rounded-xl text-sm transition ${
               mode === "extra"
                 ? "bg-cyan-500 text-black"
                 : "bg-neutral-800 text-neutral-400"
@@ -179,7 +188,7 @@ export default function LoanEMIPanel({
 
           <button
             onClick={() => setMode("tenure")}
-            className={`px-4 py-2 rounded-xl text-sm ${
+            className={`px-4 py-2 rounded-xl text-sm transition ${
               mode === "tenure"
                 ? "bg-cyan-500 text-black"
                 : "bg-neutral-800 text-neutral-400"
@@ -190,19 +199,20 @@ export default function LoanEMIPanel({
         </div>
       </div>
 
-      {/* ===== EXTRA PAYMENT INPUT ===== */}
+      {/* EXTRA PAYMENT */}
       {mode === "extra" && (
         <div className="flex gap-3 mb-6">
           <input
-            type="number"
-            value={extraPaymentInput}
-            onChange={(e) => setExtraPaymentInput(e.target.value)}
-            placeholder="Enter extra amount"
-            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-white
-              [appearance:textfield]
-              [&::-webkit-inner-spin-button]:appearance-none
-              [&::-webkit-outer-spin-button]:appearance-none"
-          />
+  type="number"
+  value={extraPaymentInput}
+  onChange={(e) => setExtraPaymentInput(e.target.value)}
+  placeholder="Enter extra amount"
+  className="flex-1 bg-neutral-900 border border-white/10 
+             rounded-xl p-3 text-white 
+             appearance-none outline-none
+             [&::-webkit-inner-spin-button]:appearance-none
+             [&::-webkit-outer-spin-button]:appearance-none"
+/>
           <button
             onClick={() =>
               setExtraPayment(Number(extraPaymentInput || 0))
@@ -214,37 +224,77 @@ export default function LoanEMIPanel({
         </div>
       )}
 
-      {/* ===== TENURE INPUT ===== */}
+      {/* TENURE */}
       {mode === "tenure" && (
-        <div className="flex gap-3 mb-6">
-          <input
-            type="number"
-            value={tenureYearsInput}
-            onChange={(e) =>
-              setTenureYearsInput(Number(e.target.value))
+        <div className="flex gap-4 mb-6 items-end">
+
+          {/* Years */}
+          <div className="flex-1">
+            <label className="text-xs text-neutral-400 mb-2 block">
+              Years
+            </label>
+            <input
+  type="number"
+  min="0"
+  value={tenureYearsInput === 0 ? "" : tenureYearsInput}
+  onChange={(e) =>
+    setTenureYearsInput(
+      e.target.value === ""
+        ? 0
+        : Math.max(0, Number(e.target.value))
+    )
+  }
+  placeholder="Enter years"
+  className="w-full bg-neutral-900 border border-white/10 
+             rounded-xl p-3 text-white outline-none 
+             focus:border-cyan-500
+             appearance-none
+             [&::-webkit-inner-spin-button]:appearance-none
+             [&::-webkit-outer-spin-button]:appearance-none"
+/>
+          </div>
+
+          {/* Months */}
+          <div className="flex-1">
+            <label className="text-xs text-neutral-400 mb-2 block">
+              Months
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="12"
+              value={tenureMonthsInput === 0 ? "" : tenureMonthsInput}
+              onChange={(e) =>
+                setTenureMonthsInput(
+                  e.target.value === ""
+                    ? 0
+                    : Math.min(12, Math.max(1, Number(e.target.value)))
+                )
+              }
+              placeholder="1 - 12"
+              className="w-full bg-neutral-900 border border-white/10 
+           rounded-xl p-3 text-white outline-none 
+           focus:border-cyan-500
+           appearance-none
+           [&::-webkit-inner-spin-button]:appearance-none
+           [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
+
+          <button
+            onClick={() =>
+              setAppliedTenure(
+                tenureYearsInput + tenureMonthsInput / 12
+              )
             }
-            placeholder="Years"
-            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-white
-              [appearance:textfield]
-              [&::-webkit-inner-spin-button]:appearance-none
-              [&::-webkit-outer-spin-button]:appearance-none"
-          />
-          <input
-            type="number"
-            value={tenureMonthsInput}
-            onChange={(e) =>
-              setTenureMonthsInput(Number(e.target.value))
-            }
-            placeholder="Months"
-            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-white
-              [appearance:textfield]
-              [&::-webkit-inner-spin-button]:appearance-none
-              [&::-webkit-outer-spin-button]:appearance-none"
-          />
+            className="px-6 h-[46px] rounded-xl bg-cyan-500 text-black font-semibold hover:bg-cyan-400 transition"
+          >
+            Apply
+          </button>
         </div>
       )}
 
-      {/* ===== TABLE TOGGLE ===== */}
+      {/* TABLE TOGGLE */}
       <button
         onClick={() => setShowTable(!showTable)}
         className="mt-6 flex items-center gap-2 text-cyan-400"
@@ -258,12 +308,10 @@ export default function LoanEMIPanel({
           <AmortizationTable schedule={schedule} />
         </div>
       )}
-
     </div>
   );
 }
 
-// ===== METRIC COMPONENT =====
 function Metric({ label, value, color }) {
   return (
     <div className="flex justify-between items-center py-4 border-b border-white/5 last:border-none">
