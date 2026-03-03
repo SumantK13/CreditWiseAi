@@ -12,7 +12,6 @@ export default function LoanEMIPanel({
   tenure,
 }) {
   const [showTable, setShowTable] = useState(false);
-
   const [mode, setMode] = useState("extra");
 
   const [extraPaymentInput, setExtraPaymentInput] = useState("");
@@ -27,16 +26,19 @@ export default function LoanEMIPanel({
     tenure > 0 &&
     interestRate < 50;
 
+  // ===== BASE EMI =====
   const baseResult = useMemo(() => {
     if (!valid) return null;
     return calculateEMI(loanAmount, interestRate, tenure);
   }, [loanAmount, interestRate, tenure, valid]);
 
+  // ===== APPLIED TENURE (if tenure mode selected) =====
   const appliedTenure =
     mode === "tenure"
       ? tenureYearsInput + tenureMonthsInput / 12
       : tenure;
 
+  // ===== SCHEDULE =====
   const schedule = useMemo(() => {
     if (!valid) return [];
 
@@ -69,6 +71,7 @@ export default function LoanEMIPanel({
     valid,
   ]);
 
+  // ===== DYNAMIC STATS =====
   const dynamicStats = useMemo(() => {
     if (!schedule.length) return null;
 
@@ -78,7 +81,6 @@ export default function LoanEMIPanel({
     );
 
     const totalPayment = loanAmount + totalInterest;
-
     const monthlyEMI = schedule[0]?.emi || baseResult?.emi || 0;
 
     return {
@@ -146,7 +148,11 @@ export default function LoanEMIPanel({
           <div className="flex items-center justify-center">
             <EMIPieChart
               principal={loanAmount}
-              interest={dynamicStats?.totalInterest || baseResult?.totalInterest || 0}
+              interest={
+                dynamicStats?.totalInterest ||
+                baseResult?.totalInterest ||
+                0
+              }
             />
           </div>
 
@@ -198,7 +204,9 @@ export default function LoanEMIPanel({
               [&::-webkit-outer-spin-button]:appearance-none"
           />
           <button
-            onClick={() => setExtraPayment(Number(extraPaymentInput || 0))}
+            onClick={() =>
+              setExtraPayment(Number(extraPaymentInput || 0))
+            }
             className="px-6 rounded-xl bg-cyan-500 text-black font-semibold"
           >
             Apply
@@ -206,13 +214,15 @@ export default function LoanEMIPanel({
         </div>
       )}
 
-      {/* ===== TENURE INPUT (YEARS + MONTHS) ===== */}
+      {/* ===== TENURE INPUT ===== */}
       {mode === "tenure" && (
         <div className="flex gap-3 mb-6">
           <input
             type="number"
             value={tenureYearsInput}
-            onChange={(e) => setTenureYearsInput(Number(e.target.value))}
+            onChange={(e) =>
+              setTenureYearsInput(Number(e.target.value))
+            }
             placeholder="Years"
             className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-white
               [appearance:textfield]
@@ -222,7 +232,9 @@ export default function LoanEMIPanel({
           <input
             type="number"
             value={tenureMonthsInput}
-            onChange={(e) => setTenureMonthsInput(Number(e.target.value))}
+            onChange={(e) =>
+              setTenureMonthsInput(Number(e.target.value))
+            }
             placeholder="Months"
             className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-white
               [appearance:textfield]
@@ -251,12 +263,14 @@ export default function LoanEMIPanel({
   );
 }
 
+// ===== METRIC COMPONENT =====
 function Metric({ label, value, color }) {
   return (
     <div className="flex justify-between items-center py-4 border-b border-white/5 last:border-none">
       <span className="text-neutral-400 text-sm">{label}</span>
       <span className={`text-lg font-semibold ${color}`}>
-        ₹ {Number(value).toLocaleString(undefined, {
+        ₹{" "}
+        {Number(value).toLocaleString(undefined, {
           maximumFractionDigits: 0,
         })}
       </span>
