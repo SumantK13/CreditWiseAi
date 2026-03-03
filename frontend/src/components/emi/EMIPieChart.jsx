@@ -40,10 +40,7 @@ export default function EMIPieChart({ principal, interest }) {
   return (
     <div className="w-full rounded-2xl bg-white/5 border border-white/10 p-6">
 
-      <h3 className="text-sm text-neutral-300 mb-4 font-semibold">
-        Loan Breakdown
-      </h3>
-
+     
       <div className="h-64 w-full">
         <ResponsiveContainer>
           <PieChart>

@@ -31,9 +31,9 @@ export default function EMIPage() {
         Back
       </button>
 
-      <h1 className="text-3xl font-bold mb-6">
-        EMI Analytics — {loan.bankName}
-      </h1>
+    <h1 className="w-full text-3xl font-semibold tracking-wide text-center text-white mb-8">
+  EMI Analytics — {loan.bankName}
+</h1>
 
       {/* PREMIUM EMI PANEL */}
       <LoanEMIPanel

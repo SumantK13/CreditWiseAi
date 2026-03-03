@@ -21,11 +21,13 @@ export default function LoanEMIPanel({
     tenure > 0 &&
     interestRate < 50;
 
-  const result = useMemo(() => {
+  // Base EMI calculation
+  const baseResult = useMemo(() => {
     if (!valid) return null;
     return calculateEMI(loanAmount, interestRate, tenure);
-  }, [loanAmount, interestRate, tenure]);
+  }, [loanAmount, interestRate, tenure, valid]);
 
+  // Schedule updates automatically when extraPayment changes
   const schedule = useMemo(() => {
     if (!valid) return [];
     return generateSchedule(
@@ -34,79 +36,104 @@ export default function LoanEMIPanel({
       tenure,
       extraPayment
     );
-  }, [loanAmount, interestRate, tenure, extraPayment]);
-  // NEW: derive totals from updated schedule
-const dynamicTotals = useMemo(() => {
-  if (!schedule.length) return null;
+  }, [loanAmount, interestRate, tenure, extraPayment, valid]);
 
-  const totalPayment = schedule.reduce(
-    (sum, row) => sum + row.emi,
-    0
-  );
+  // Dynamic totals from updated schedule
+  const dynamicStats = useMemo(() => {
+    if (!schedule.length) return null;
 
-  const totalInterest = totalPayment - loanAmount;
+    const totalInterest = schedule.reduce(
+      (sum, row) => sum + row.interest,
+      0
+    );
 
-  return {
-    totalPayment,
-    totalInterest,
-  };
-}, [schedule, loanAmount]);
-  const updatedTotals = useMemo(() => {
-  if (!schedule.length) return null;
+    const totalPayment = loanAmount + totalInterest;
 
-  const totalInterest = schedule.reduce(
-    (sum, row) => sum + row.interest,
-    0
-  );
+    const monthlyEMI = schedule[0]?.emi || baseResult?.emi || 0;
 
-  const totalPayment = loanAmount + totalInterest;
-
-  return {
-    totalInterest,
-    totalPayment,
-  };
-}, [schedule, loanAmount]);
-
-  // PREMIUM ANALYTICS
-  const newTenure = schedule.length;
-  const interestPaid = schedule.reduce((a, b) => a + b.interest, 0);
-  const interestSaved = result.totalInterest - interestPaid;
+    return {
+      monthlyEMI,
+      totalInterest,
+      totalPayment,
+    };
+  }, [schedule, loanAmount, baseResult]);
 
   if (!valid) {
-    return <div className="mt-4 text-red-400">Invalid EMI data</div>;
+    return (
+      <div className="mt-4 text-red-400 text-sm">
+        Invalid EMI data received.
+      </div>
+    );
   }
 
   return (
     <div className="mt-6 rounded-3xl bg-neutral-900/60 border border-white/10 p-6">
 
-      {/* SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card title="Monthly EMI" value={result.emi} color="text-cyan-400"/>
-       <Card
-  title="Total Interest"
-  value={dynamicTotals?.totalInterest || result.totalInterest}
-  color="text-orange-400"
-/>
+      {/* ====== PREMIUM LAYOUT ====== */}
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10 items-stretch">
 
-<Card
-  title="Total Payment"
-  value={dynamicTotals?.totalPayment || result.totalPayment}
-  color="text-white"
-/>
-      </div>
+  {/* LEFT CARD */}
+  <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/10 rounded-3xl p-8 flex flex-col">
 
-    <EMIPieChart
-  principal={loanAmount}
-  interest={dynamicTotals?.totalInterest || result.totalInterest}
-/>
+    <h3 className="text-sm text-neutral-400 mb-8 font-semibold">
+      Loan Summary
+    </h3>
 
-      {/* PREPAYMENT */}
-      <div className="mt-6 space-y-3">
+    <div className="space-y-8 flex-1">
+
+      <Metric
+        label="Principal Amount"
+        value={loanAmount}
+        color="text-white"
+      />
+
+      <Metric
+        label="Monthly EMI"
+        value={dynamicStats?.monthlyEMI || baseResult?.emi || 0}
+        color="text-cyan-400"
+      />
+
+      <Metric
+        label="Total Interest"
+        value={dynamicStats?.totalInterest || baseResult?.totalInterest || 0}
+        color="text-orange-400"
+      />
+
+      <Metric
+        label="Total Payment"
+        value={dynamicStats?.totalPayment || baseResult?.totalPayment || 0}
+        color="text-emerald-400"
+      />
+
+    </div>
+  </div>
+
+  {/* RIGHT CARD */}
+  <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 border border-white/10 rounded-3xl p-8 flex flex-col">
+
+    <h3 className="text-sm text-neutral-400 mb-8 font-semibold">
+      Loan Breakdown
+    </h3>
+
+    <div className="flex-1 flex items-center justify-center">
+      <EMIPieChart
+        principal={loanAmount}
+        interest={
+          dynamicStats?.totalInterest || baseResult?.totalInterest || 0
+        }
+      />
+    </div>
+
+  </div>
+
+</div>
+      {/* ===== PREPAYMENT SECTION ===== */}
+      <div className="space-y-3">
         <label className="text-sm text-neutral-300">
           Extra Payment per Month (₹)
         </label>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <input
             type="number"
             value={extraPaymentInput}
@@ -116,27 +143,22 @@ const dynamicTotals = useMemo(() => {
           />
 
           <button
-            onClick={() => setExtraPayment(Number(extraPaymentInput || 0))}
-            className="px-5 rounded-xl bg-cyan-500 text-black font-semibold"
+            onClick={() =>
+              setExtraPayment(Number(extraPaymentInput || 0))
+            }
+            className="px-6 rounded-xl bg-cyan-500 text-black font-semibold hover:bg-cyan-400 transition"
           >
             Apply
           </button>
         </div>
-
-        {/* PREMIUM ANALYTICS */}
-        {extraPayment > 0 && (
-          <div className="text-sm bg-white/5 border border-white/10 p-3 rounded-xl">
-            <div>New Tenure: <span className="text-cyan-400">{newTenure} months</span></div>
-            <div>Interest Saved: <span className="text-emerald-400">₹ {interestSaved.toFixed(0)}</span></div>
-          </div>
-        )}
       </div>
 
+      {/* ===== TABLE TOGGLE ===== */}
       <button
         onClick={() => setShowTable(!showTable)}
-        className="mt-6 flex items-center gap-2 text-cyan-400"
+        className="mt-6 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition"
       >
-        {showTable ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+        {showTable ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         {showTable ? "Hide Amortization Schedule" : "View Amortization Schedule"}
       </button>
 
@@ -149,13 +171,17 @@ const dynamicTotals = useMemo(() => {
   );
 }
 
-function Card({ title, value, color }) {
+function Metric({ label, value, color }) {
   return (
-    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-      <div className="text-xs text-neutral-400">{title}</div>
-      <div className={`text-xl font-bold ${color}`}>
-        ₹ {value.toFixed(0)}
-      </div>
+    <div className="flex justify-between items-center pb-4 border-b border-white/5 last:border-none">
+      <span className="text-neutral-400 text-sm tracking-wide">
+        {label}
+      </span>
+      <span className={`text-xl font-semibold ${color}`}>
+        ₹ {Number(value).toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        })}
+      </span>
     </div>
   );
 }
