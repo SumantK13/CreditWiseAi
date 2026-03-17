@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import EMIPieChart from "./EMIPieChart";
 import AmortizationTable from "./AmortizationTable";
 import { calculateEMI, generateSchedule } from "./emiUtils";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 
 export default function LoanEMIPanel({
   loanAmount,
@@ -88,13 +88,14 @@ export default function LoanEMIPanel({
     };
   }, [schedule, loanAmount, baseResult]);
 
-  const interestSaved =
-    (baseResult?.totalInterest || 0) -
-    (dynamicStats?.totalInterest || 0);
+  // FIX 1: Round the values so JavaScript floating-point math doesn't trigger false numbers
+  const interestSaved = Math.round((baseResult?.totalInterest || 0) - (dynamicStats?.totalInterest || 0));
+  const monthsSaved = Math.round((baseResult?.months || 0) - (dynamicStats?.months || 0));
 
-  const monthsSaved =
-    (baseResult?.months || 0) -
-    (dynamicStats?.months || 0);
+  // FIX 2: Check if the user has actually made any changes to the default inputs!
+  const hasAdjustments = 
+    (mode === "extra" && extraPayment > 0) || 
+    (mode === "tenure" && appliedTenure !== tenure);
 
   if (!valid) {
     return (
@@ -121,8 +122,8 @@ export default function LoanEMIPanel({
           <Metric label="Total Interest" value={dynamicStats?.totalInterest || baseResult?.totalInterest || 0} color="text-orange-400" />
           <Metric label="Total Payment" value={dynamicStats?.totalPayment || baseResult?.totalPayment || 0} color="text-emerald-400" />
 
-          {/* Savings / Warning */}
-          {dynamicStats && (
+          {/* FIX 3: Wrap the Savings/Warning alerts in the hasAdjustments check */}
+          {hasAdjustments && dynamicStats && (
             <>
               {interestSaved > 0 && (
                 <div className="mt-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
@@ -135,10 +136,11 @@ export default function LoanEMIPanel({
                 </div>
               )}
 
-              {monthsSaved < 0 && (
+              {/* Strict check added so it doesn't trigger on ₹ 0 */}
+              {monthsSaved < 0 && interestSaved < 0 && (
                 <div className="mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <div className="text-sm text-red-400 font-semibold">
-                    ⚠ Loan Duration Increased
+                  <div className="text-sm text-red-400 font-semibold flex items-center gap-2">
+                    <AlertTriangle size={16} /> Loan Duration Increased
                   </div>
                   <div className="text-xs text-neutral-400 mt-1">
                     You will pay ₹ {Math.abs(interestSaved).toLocaleString()} more interest
@@ -203,16 +205,16 @@ export default function LoanEMIPanel({
       {mode === "extra" && (
         <div className="flex gap-3 mb-6">
           <input
-  type="number"
-  value={extraPaymentInput}
-  onChange={(e) => setExtraPaymentInput(e.target.value)}
-  placeholder="Enter extra amount"
-  className="flex-1 bg-neutral-900 border border-white/10 
-             rounded-xl p-3 text-white 
-             appearance-none outline-none
-             [&::-webkit-inner-spin-button]:appearance-none
-             [&::-webkit-outer-spin-button]:appearance-none"
-/>
+            type="number"
+            value={extraPaymentInput}
+            onChange={(e) => setExtraPaymentInput(e.target.value)}
+            placeholder="Enter extra amount"
+            className="flex-1 bg-neutral-900 border border-white/10 
+                       rounded-xl p-3 text-white 
+                       appearance-none outline-none
+                       [&::-webkit-inner-spin-button]:appearance-none
+                       [&::-webkit-outer-spin-button]:appearance-none"
+          />
           <button
             onClick={() =>
               setExtraPayment(Number(extraPaymentInput || 0))
@@ -234,24 +236,24 @@ export default function LoanEMIPanel({
               Years
             </label>
             <input
-  type="number"
-  min="0"
-  value={tenureYearsInput === 0 ? "" : tenureYearsInput}
-  onChange={(e) =>
-    setTenureYearsInput(
-      e.target.value === ""
-        ? 0
-        : Math.max(0, Number(e.target.value))
-    )
-  }
-  placeholder="Enter years"
-  className="w-full bg-neutral-900 border border-white/10 
-             rounded-xl p-3 text-white outline-none 
-             focus:border-cyan-500
-             appearance-none
-             [&::-webkit-inner-spin-button]:appearance-none
-             [&::-webkit-outer-spin-button]:appearance-none"
-/>
+              type="number"
+              min="0"
+              value={tenureYearsInput === 0 ? "" : tenureYearsInput}
+              onChange={(e) =>
+                setTenureYearsInput(
+                  e.target.value === ""
+                    ? 0
+                    : Math.max(0, Number(e.target.value))
+                )
+              }
+              placeholder="Enter years"
+              className="w-full bg-neutral-900 border border-white/10 
+                         rounded-xl p-3 text-white outline-none 
+                         focus:border-cyan-500
+                         appearance-none
+                         [&::-webkit-inner-spin-button]:appearance-none
+                         [&::-webkit-outer-spin-button]:appearance-none"
+            />
           </div>
 
           {/* Months */}
@@ -273,11 +275,11 @@ export default function LoanEMIPanel({
               }
               placeholder="1 - 12"
               className="w-full bg-neutral-900 border border-white/10 
-           rounded-xl p-3 text-white outline-none 
-           focus:border-cyan-500
-           appearance-none
-           [&::-webkit-inner-spin-button]:appearance-none
-           [&::-webkit-outer-spin-button]:appearance-none"
+                         rounded-xl p-3 text-white outline-none 
+                         focus:border-cyan-500
+                         appearance-none
+                         [&::-webkit-inner-spin-button]:appearance-none
+                         [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
 
