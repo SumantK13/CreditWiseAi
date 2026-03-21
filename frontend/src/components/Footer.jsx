@@ -43,7 +43,8 @@ const Footer = () => {
             <ul className="space-y-4 text-sm text-neutral-500">
               <FooterLink to="/check-eligibility">Check Eligibility</FooterLink>
               <FooterLink to="/dashboard">Dashboard</FooterLink>
-              <FooterLink to="/how-it-works">How it Works</FooterLink>
+              <FooterLink to="/first-time-borrower/roadmap">Loan Roadmap</FooterLink>
+              <FooterLink to="/first-time-borrower/checklist">Pre-Flight Checklist</FooterLink>
               <FooterLink to="/pricing">Pricing</FooterLink>
             </ul>
           </div>

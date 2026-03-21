@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute'; 
 import EMIPage from "@/pages/EMIPage";
 import LoanComparison from './pages/LoanComparison';
+import FirstTimeBorrowerRoadmap from './pages/FirstTimeBorrowerRoadmap';
+import PreFlightChecklist from './pages/PreFlightChecklist';
 
 function App() {
   return (
@@ -15,6 +17,14 @@ function App() {
           {/* Public Routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/first-time-borrower/roadmap"
+            element={<FirstTimeBorrowerRoadmap />}
+          />
+          <Route
+            path="/first-time-borrower/checklist"
+            element={<PreFlightChecklist />}
+          />
 
           <Route 
             path="/dashboard" 
