@@ -5,6 +5,7 @@ import LoanForm from './pages/LoanForm';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute'; 
 import EMIPage from "@/pages/EMIPage";
+import LoanComparison from './pages/LoanComparison';
 
 function App() {
   return (
@@ -24,6 +25,14 @@ function App() {
             } 
           />
           <Route path="/emi/:loanId" element={<EMIPage />} />
+          <Route
+            path="/loan-comparison"
+            element={
+              <ProtectedRoute>
+                <LoanComparison />
+              </ProtectedRoute>
+            }
+          />
           
           <Route 
             path="/check-eligibility" 
