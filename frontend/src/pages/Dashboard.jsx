@@ -3,8 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
 import { 
-  ArrowLeft, CheckCircle2, XCircle, AlertTriangle, 
-  Banknote, Percent, Calendar, ChevronRight 
+  ArrowLeft, Banknote, Percent, ChevronRight, GitCompare
 } from 'lucide-react';
 import LoanEMIPanel from "@/components/emi/LoanEMIPanel";
 import axios from 'axios';
@@ -20,6 +19,8 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [openEmi, setOpenEmi] = useState(null);
+  /** Indices into full `loans` array for side-by-side compare (max 4). */
+  const [compareIndices, setCompareIndices] = useState([]);
 
   // On direct visits, try to load the latest saved analysis for the logged-in user
   useEffect(() => {
@@ -85,6 +86,38 @@ const Dashboard = () => {
   }
 
   const { results: loans, inputs } = data;
+
+  const loanIndexKey = (loan) => {
+    const idx = loans.indexOf(loan);
+    return idx >= 0 ? idx : null;
+  };
+
+  const toggleCompareLoan = (loan) => {
+    const idx = loanIndexKey(loan);
+    if (idx == null) return;
+    setCompareIndices((prev) => {
+      if (prev.includes(idx)) return prev.filter((i) => i !== idx);
+      if (prev.length >= 4) return prev;
+      return [...prev, idx];
+    });
+  };
+
+  const selectedForCompare = compareIndices
+    .map((i) => loans[i])
+    .filter(Boolean);
+
+  const goToCompare = () => {
+    if (selectedForCompare.length < 2) return;
+    navigate('/loan-comparison', {
+      state: {
+        loans: selectedForCompare.map((loan, i) => ({
+          ...loan,
+          compareId: compareIndices[i],
+        })),
+        inputs,
+      },
+    });
+  };
 
   // Normalize a loanType string to a key for filtering
   const normalizeType = (value = '') => value.toLowerCase().trim();
@@ -182,6 +215,65 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+
+          {loans.length >= 2 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className="relative mt-8 overflow-hidden rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-950/50 via-neutral-900/80 to-neutral-950 p-5 shadow-[0_0_48px_-16px_rgba(6,182,212,0.35)] sm:p-6"
+            >
+              <div
+                className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl"
+                aria-hidden
+              />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-cyan-600/10 blur-3xl" aria-hidden />
+
+              <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+                <div className="flex gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-500/10 shadow-inner">
+                    <GitCompare className="text-cyan-300" size={22} strokeWidth={1.75} aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
+                      Compare offers
+                    </h2>
+                    <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-neutral-400">
+                      Choose two to four lenders below. We’ll show rates, EMI, fees, and approval signals in one table.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 lg:flex-col lg:items-stretch xl:flex-row xl:items-center">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tabular-nums transition-colors ${
+                        selectedForCompare.length >= 2
+                          ? 'border-emerald-400/35 bg-emerald-500/10 text-emerald-200'
+                          : 'border-white/10 bg-black/25 text-neutral-400'
+                      }`}
+                    >
+                      {selectedForCompare.length} of 4 selected
+                    </span>
+                    {selectedForCompare.length > 0 && selectedForCompare.length < 2 && (
+                      <span className="text-xs text-neutral-500">
+                        Need {2 - selectedForCompare.length} more
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={goToCompare}
+                    disabled={selectedForCompare.length < 2}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black shadow-[0_0_32px_-6px_rgba(34,211,238,0.55)] transition-all hover:bg-cyan-300 hover:shadow-[0_0_40px_-6px_rgba(34,211,238,0.65)] disabled:pointer-events-none disabled:opacity-25 disabled:shadow-none sm:w-auto"
+                  >
+                    Open comparison
+                    <ChevronRight size={18} className="opacity-90" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* RESULTS GRID */}
@@ -192,24 +284,67 @@ const Dashboard = () => {
             </div>
           )}
 
-          {filteredLoans.map((loan, index) => (
+          {filteredLoans.map((loan, index) => {
+            const idx = loanIndexKey(loan);
+            const compareChecked = idx != null && compareIndices.includes(idx);
+            const compareDisabled = idx == null || (compareIndices.length >= 4 && !compareChecked);
+            const compareSlot =
+              compareChecked && idx != null ? compareIndices.indexOf(idx) + 1 : null;
+            return (
   <motion.div
     key={loan._id || index}
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.1 }}
-    className="group relative bg-neutral-900/40 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 hover:border-cyan-500/30 hover:bg-neutral-900/60 transition-all duration-300"
+    className={`group relative overflow-hidden rounded-3xl border p-6 backdrop-blur-sm transition-all duration-300 md:p-8 ${
+      compareChecked
+        ? 'border-cyan-400/35 bg-gradient-to-br from-cyan-950/25 to-neutral-900/50 shadow-[0_0_40px_-12px_rgba(34,211,238,0.35)] ring-1 ring-cyan-400/20'
+        : 'border-white/10 bg-neutral-900/40 hover:border-cyan-500/30 hover:bg-neutral-900/60'
+    }`}
   >
-    <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-      
-      {/* 1. BANK INFO */}
-      <div className="flex-1 min-w-[200px]">
-        <h3 className="text-2xl font-bold text-white mb-1">{loan.bankName}</h3>
-        <div className="flex items-center gap-2 text-sm">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.approvalProbability)}`}>
-            {loan.status}
-          </span>
+    <div className="flex flex-col gap-8 md:flex-row md:items-center">
+      {/* 1. BANK INFO + compare toggle */}
+      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-2xl font-bold text-white mb-1">{loan.bankName}</h3>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(loan.approvalProbability)}`}>
+              {loan.status}
+            </span>
+          </div>
         </div>
+        {loans.length >= 2 && (
+          <button
+            type="button"
+            onClick={() => toggleCompareLoan(loan)}
+            disabled={compareDisabled}
+            aria-pressed={compareChecked}
+            aria-label={
+              compareChecked
+                ? `Remove ${loan.bankName} from comparison`
+                : `Add ${loan.bankName} to comparison`
+            }
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all sm:mt-0.5 ${
+              compareChecked
+                ? 'border-cyan-400/45 bg-cyan-500/15 text-cyan-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
+                : 'border-white/12 bg-white/[0.04] text-neutral-300 hover:border-cyan-500/35 hover:bg-cyan-500/10 hover:text-white'
+            } disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/12 disabled:hover:bg-white/[0.04] disabled:hover:text-neutral-300`}
+          >
+            {compareChecked ? (
+              <>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-400 text-[11px] font-bold text-black shadow-sm">
+                  {compareSlot}
+                </span>
+                <span>In compare</span>
+              </>
+            ) : (
+              <>
+                <GitCompare size={14} className="text-neutral-400 group-hover:text-cyan-300/90" aria-hidden />
+                <span>Add to compare</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* 2. NUMBERS */}
@@ -293,7 +428,8 @@ const Dashboard = () => {
       )}
     </div>
   </motion.div>
-))}
+);
+})}
         </div>
 
       </main>

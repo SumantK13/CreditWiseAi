@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, GitCompare } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 const LoanComparison = () => {
@@ -14,7 +14,12 @@ const LoanComparison = () => {
     return `₹ ${amount.toLocaleString()}`;
   };
 
-  const getTenureValue = (loan) => loan.tenureRange || `${inputs.tenureYears} years`|| 'N/A';
+  const getTenureValue = (loan) => {
+    if (loan.tenureRange) return loan.tenureRange;
+    if (inputs.tenureYears != null && inputs.tenureYears !== '')
+      return `${inputs.tenureYears} years`;
+    return 'N/A';
+  };
   const getMaxAmountValue = (loan) => {
     if (typeof loan.maxLoanAmount === 'number') return loan.maxLoanAmount;
     if (typeof loan.maxAmount === 'number') return loan.maxAmount;
@@ -54,18 +59,29 @@ const LoanComparison = () => {
     return (
       <div className="min-h-screen bg-black text-white">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12 text-center">
-          <h1 className="text-3xl font-bold mb-3">Loan Comparison</h1>
-          <p className="text-neutral-400 mb-8">
-            Select at least 2 loans from the dashboard to compare them side-by-side.
-          </p>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-500 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to Dashboard
-          </Link>
+        <main className="mx-auto max-w-lg px-4 pt-28 pb-12 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/40 via-neutral-900/90 to-neutral-950 p-8 text-center shadow-[0_0_48px_-16px_rgba(6,182,212,0.3)]">
+            <div
+              className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl"
+              aria-hidden
+            />
+            <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-500/10">
+              <GitCompare className="text-cyan-300" size={26} strokeWidth={1.75} aria-hidden />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Nothing to compare yet
+            </h1>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-400">
+              On your results page, use <span className="text-neutral-300">Add to compare</span> on at least two lenders, then open the comparison.
+            </p>
+            <Link
+              to="/dashboard"
+              className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 text-sm font-bold text-black shadow-[0_0_28px_-6px_rgba(34,211,238,0.5)] transition-all hover:bg-cyan-300"
+            >
+              <ArrowLeft size={18} aria-hidden />
+              Back to results
+            </Link>
+          </div>
         </main>
       </div>
     );
@@ -74,55 +90,71 @@ const LoanComparison = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 lg:px-8">
         <button
+          type="button"
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors mb-5 text-sm"
+          className="mb-6 flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white"
         >
-          <ArrowLeft size={16} />
-          Back to Results
+          <ArrowLeft size={16} aria-hidden />
+          Back to results
         </button>
 
-        <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold">Loan Comparison</h1>
-          <p className="text-neutral-400 mt-2">
-            Compare key metrics for your selected loans.
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200/90">
+              <GitCompare size={14} aria-hidden />
+              {loans.length} offers
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+              Side-by-side comparison
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-neutral-400">
+              Rates, repayment, and eligibility signals in one view. Scroll horizontally on smaller screens.
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-neutral-900/50 overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-neutral-950/70">
-              <tr className="text-left border-b border-white/10">
-                <th className="px-5 py-4 text-xs tracking-wider uppercase text-neutral-400 min-w-[220px]">
-                  Metric
-                </th>
-                {loans.map((loan) => (
-                  <th key={loan.compareId || loan._id || loan.bankName} className="px-5 py-4 min-w-[220px]">
-                    <div className="text-lg font-semibold">{loan.bankName}</div>
-                    <div className="text-xs text-neutral-400 mt-1">{loan.loanType || 'Loan Offer'}</div>
+        <div className="overflow-hidden rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-neutral-900/80 to-neutral-950/90 shadow-[0_0_40px_-14px_rgba(6,182,212,0.2)]">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-white/10 bg-black/40">
+                  <th className="sticky left-0 z-20 min-w-[160px] border-r border-white/5 bg-neutral-950/95 px-4 py-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 backdrop-blur-sm sm:min-w-[200px] sm:px-5">
+                    Metric
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {rows.map((row) => (
-                <tr key={row.label}>
-                  <td className="px-5 py-4 text-sm text-neutral-300 font-medium">
-                    {row.label}
-                  </td>
                   {loans.map((loan) => (
-                    <td
-                      key={`${row.label}-${loan.compareId || loan._id || loan.bankName}`}
-                      className="px-5 py-4 text-sm text-white/95"
+                    <th
+                      key={loan.compareId || loan._id || loan.bankName}
+                      className="min-w-[200px] px-4 py-4 sm:min-w-[220px] sm:px-5"
                     >
-                      {row.render(loan)}
-                    </td>
+                      <div className="text-base font-semibold text-white sm:text-lg">{loan.bankName}</div>
+                      <div className="mt-1 text-xs font-medium text-cyan-200/70">
+                        {loan.loanType || 'Loan offer'}
+                      </div>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {rows.map((row) => (
+                  <tr key={row.label} className="transition-colors hover:bg-white/[0.03]">
+                    <td className="sticky left-0 z-10 border-r border-white/5 bg-neutral-950/95 px-4 py-3.5 text-sm font-medium text-neutral-400 backdrop-blur-sm sm:px-5">
+                      {row.label}
+                    </td>
+                    {loans.map((loan) => (
+                      <td
+                        key={`${row.label}-${loan.compareId || loan._id || loan.bankName}`}
+                        className="px-4 py-3.5 text-sm leading-relaxed text-white/90 sm:px-5"
+                      >
+                        {row.render(loan)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </div>
