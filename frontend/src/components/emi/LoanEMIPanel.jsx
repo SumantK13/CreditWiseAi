@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import EMIPieChart from "./EMIPieChart";
 import AmortizationTable from "./AmortizationTable";
 import { calculateEMI, generateSchedule } from "./emiUtils";
-import { ChevronDown, ChevronUp, AlertTriangle, IndianRupee, TrendingUp, CalendarClock, Settings2, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, IndianRupee, TrendingUp, CalendarClock, Settings2, Sparkles, Zap } from "lucide-react";
 
 export default function LoanEMIPanel({
   loanAmount,
@@ -12,11 +12,8 @@ export default function LoanEMIPanel({
   const [showTable, setShowTable] = useState(false);
   const [mode, setMode] = useState("extra");
 
-  const [extraPaymentInput, setExtraPaymentInput] = useState("");
+  // Removed the separate "Input" states to allow for REAL-TIME updates
   const [extraPayment, setExtraPayment] = useState(0);
-
-  const [tenureYearsInput, setTenureYearsInput] = useState(Math.floor(tenure));
-  const [tenureMonthsInput, setTenureMonthsInput] = useState(Math.round((tenure % 1) * 12));
   const [appliedTenure, setAppliedTenure] = useState(tenure);
 
   const valid = loanAmount > 0 && interestRate > 0 && tenure > 0 && interestRate < 50;
@@ -50,6 +47,9 @@ export default function LoanEMIPanel({
     return <div className="mt-4 text-red-400 text-sm">Invalid EMI data received.</div>;
   }
 
+  // Dynamic max value for the slider (either 50k or 2x their EMI, whichever is higher)
+  const maxExtraPaymentSlider = Math.max(50000, Math.round((baseResult?.emi || 0) * 2));
+
   return (
     <div className="relative mt-6 rounded-3xl bg-black/40 border border-white/5 p-6 md:p-8 overflow-hidden">
       
@@ -62,14 +62,19 @@ export default function LoanEMIPanel({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
           {/* LEFT: Metrics */}
-          <div className="bg-neutral-900/50 backdrop-blur-md border border-white/10 rounded-3xl p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 transition-all duration-300">
             <h3 className="text-sm text-neutral-400 mb-6 font-semibold uppercase tracking-wider flex items-center gap-2">
               <Settings2 size={16} className="text-cyan-400" /> Loan Summary
             </h3>
 
             <div className="space-y-2">
               <Metric icon={IndianRupee} label="Principal Amount" value={loanAmount} color="text-white" />
-              <Metric icon={CalendarClock} label="Monthly EMI" value={dynamicStats?.monthlyEMI || baseResult?.emi || 0} color="text-cyan-400" />
+              <Metric 
+                icon={CalendarClock} 
+                label={mode === 'extra' && extraPayment > 0 ? "New Total Monthly Outflow" : "Monthly EMI"} 
+                value={mode === 'extra' ? (baseResult?.emi || 0) + extraPayment : (dynamicStats?.monthlyEMI || baseResult?.emi || 0)} 
+                color="text-cyan-400" 
+              />
               <Metric icon={TrendingUp} label="Total Interest" value={dynamicStats?.totalInterest || baseResult?.totalInterest || 0} color="text-purple-400" />
               <Metric icon={IndianRupee} label="Total Payment" value={dynamicStats?.totalPayment || baseResult?.totalPayment || 0} color="text-emerald-400" />
             </div>
@@ -77,7 +82,7 @@ export default function LoanEMIPanel({
             {hasAdjustments && dynamicStats && (
               <div className="mt-6">
                 {interestSaved > 0 && (
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] transform transition-all duration-300 scale-100">
                     <div className="text-sm text-emerald-400 font-bold flex items-center gap-2">
                       <Sparkles size={16} /> You Save ₹ {interestSaved.toLocaleString()}
                     </div>
@@ -105,7 +110,7 @@ export default function LoanEMIPanel({
              <h3 className="text-sm text-neutral-400 font-semibold uppercase tracking-wider absolute top-6 left-6">
               Breakdown
             </h3>
-            <div className="w-full mt-4">
+            <div className="w-full mt-4 transition-all duration-500">
               <EMIPieChart
                 principal={loanAmount}
                 interest={dynamicStats?.totalInterest || baseResult?.totalInterest || 0}
@@ -117,8 +122,8 @@ export default function LoanEMIPanel({
         {/* STRATEGY */}
         <div className="bg-neutral-900/40 border border-white/5 rounded-3xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-            <h3 className="text-sm text-neutral-400 font-semibold uppercase tracking-wider">
-              Optimization Strategy
+            <h3 className="text-sm text-neutral-400 font-semibold uppercase tracking-wider flex items-center gap-2">
+              <Zap size={16} className="text-yellow-400" /> Interactive Optimizer
             </h3>
             
             {/* Segmented Control */}
@@ -142,57 +147,103 @@ export default function LoanEMIPanel({
             </div>
           </div>
 
-          {/* EXTRA PAYMENT INPUT */}
+          {/* EXTRA PAYMENT INTERACTIVE CONTROLS */}
           {mode === "extra" && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1 group">
-                <IndianRupee size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 group-focus-within:text-cyan-400 transition-colors" />
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full group">
+                  <IndianRupee size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 group-focus-within:text-cyan-400 transition-colors" />
+                  <input
+                    type="number"
+                    value={extraPayment || ""}
+                    onChange={(e) => setExtraPayment(Number(e.target.value))}
+                    placeholder="Additional monthly payment"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white text-lg font-bold focus:outline-none focus:border-cyan-500/50 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                
+                {/* Quick-Tap Chips */}
+                <div className="flex gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                  {[1000, 5000, 10000].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setExtraPayment((prev) => prev + amount)}
+                      className="whitespace-nowrap px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white transition-colors text-sm font-semibold"
+                    >
+                      +₹{amount.toLocaleString()}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setExtraPayment(0)}
+                    className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-semibold"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Slider */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-neutral-500">
+                  <span>₹0</span>
+                  <span className="text-cyan-400">Drag to visualize savings</span>
+                  <span>₹{maxExtraPaymentSlider.toLocaleString()}</span>
+                </div>
                 <input
-                  type="number"
-                  value={extraPaymentInput}
-                  onChange={(e) => setExtraPaymentInput(e.target.value)}
-                  placeholder="Additional monthly payment (e.g. 5000)"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-cyan-500/50 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  type="range"
+                  min="0"
+                  max={maxExtraPaymentSlider}
+                  step="500"
+                  value={extraPayment}
+                  onChange={(e) => setExtraPayment(Number(e.target.value))}
+                  className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                 />
               </div>
-              <button
-                onClick={() => setExtraPayment(Number(extraPaymentInput || 0))}
-                className="px-8 py-4 rounded-xl bg-white text-black font-bold hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-              >
-                Apply Strategy
-              </button>
             </div>
           )}
 
-          {/* TENURE INPUT */}
+          {/* TENURE INTERACTIVE CONTROLS */}
           {mode === "tenure" && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 flex gap-4">
-                <div className="flex-1 relative group">
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-neutral-500 uppercase font-bold">Yrs</span>
-                  <input
-                    type="number" min="0" value={tenureYearsInput === 0 ? "" : tenureYearsInput}
-                    onChange={(e) => setTenureYearsInput(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-                    placeholder="Years"
-                    className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-4 pr-12 text-white focus:outline-none focus:border-cyan-500/50 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
+            <div className="space-y-6">
+               <div className="flex flex-col sm:flex-row gap-4 items-center">
+                 <div className="w-full sm:w-1/2 text-center sm:text-left">
+                   <div className="text-neutral-400 text-sm font-semibold mb-1">Target Loan Duration</div>
+                   <div className="text-3xl font-bold text-white">
+                      {Math.floor(appliedTenure)} <span className="text-lg text-neutral-500">Yrs</span>{" "}
+                      {Math.round((appliedTenure % 1) * 12)} <span className="text-lg text-neutral-500">Mos</span>
+                   </div>
+                 </div>
+
+                 <div className="flex gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar justify-end">
+                    <button onClick={() => setAppliedTenure(Math.max(1, appliedTenure - 1))} className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 transition-colors text-sm font-semibold">
+                      -1 Year
+                    </button>
+                    <button onClick={() => setAppliedTenure(tenure)} className="px-4 py-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-colors text-sm font-semibold">
+                      Original ({tenure}Y)
+                    </button>
+                    <button onClick={() => setAppliedTenure(appliedTenure + 1)} className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-neutral-300 hover:bg-white/10 transition-colors text-sm font-semibold">
+                      +1 Year
+                    </button>
+                 </div>
+               </div>
+
+               {/* Slider */}
+               <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-neutral-500">
+                  <span>1 Year</span>
+                  <span className="text-cyan-400">Slide to adjust duration</span>
+                  <span>30 Years</span>
                 </div>
-                <div className="flex-1 relative group">
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-neutral-500 uppercase font-bold">Mos</span>
-                  <input
-                    type="number" min="1" max="12" value={tenureMonthsInput === 0 ? "" : tenureMonthsInput}
-                    onChange={(e) => setTenureMonthsInput(e.target.value === "" ? 0 : Math.min(12, Math.max(1, Number(e.target.value))))}
-                    placeholder="Months"
-                    className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-4 pr-12 text-white focus:outline-none focus:border-cyan-500/50 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max={Math.max(30, tenure)} // Cap max slider to 30 years or original
+                  step="0.5"
+                  value={appliedTenure}
+                  onChange={(e) => setAppliedTenure(Number(e.target.value))}
+                  className="w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                />
               </div>
-              <button
-                onClick={() => setAppliedTenure(tenureYearsInput + tenureMonthsInput / 12)}
-                className="px-8 py-4 rounded-xl bg-white text-black font-bold hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] sm:w-auto w-full"
-              >
-                Apply Strategy
-              </button>
             </div>
           )}
         </div>
@@ -222,7 +273,7 @@ function Metric({ icon: Icon, label, value, color }) {
       <span className="text-neutral-400 text-sm flex items-center gap-2">
         <Icon size={14} className="text-neutral-500 group-hover:text-white transition-colors" /> {label}
       </span>
-      <span className={`text-lg font-bold ${color}`}>
+      <span className={`text-lg font-bold ${color} transition-all duration-300`}>
         ₹ {Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </span>
     </div>
