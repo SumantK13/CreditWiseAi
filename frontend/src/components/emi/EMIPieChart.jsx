@@ -1,16 +1,9 @@
-// src/components/emi/EMIPieChart.jsx
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
+// Updated to match the AI Dashboard vibe
 const COLORS = {
-  principal: "#06b6d4",
-  interest: "#f97316",
+  principal: "#06b6d4", // cyan-500
+  interest: "#a855f7",  // purple-500
 };
 
 export default function EMIPieChart({ principal, interest }) {
@@ -19,58 +12,52 @@ export default function EMIPieChart({ principal, interest }) {
     { name: "Interest", value: interest, color: COLORS.interest },
   ];
 
-  // ⭐ PREMIUM CUSTOM TOOLTIP (fixes empty black space)
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
-
     const item = payload[0];
 
     return (
-      <div className="px-4 py-2 rounded-xl bg-black/90 border border-white/10 shadow-lg">
-        <span
-          className="text-base font-semibold"
-          style={{ color: item.payload.color }}
-        >
-          {item.name} : ₹ {Number(item.value).toLocaleString()}
+      <div className="px-4 py-3 rounded-xl bg-black/90 backdrop-blur-md border border-white/10 shadow-xl">
+        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: item.payload.color }}>
+          {item.name}
         </span>
+        <div className="text-lg font-bold text-white mt-1">
+          ₹ {Number(item.value).toLocaleString()}
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="w-full rounded-2xl bg-white/5 border border-white/10 p-6">
-
-     
-      <div className="h-64 w-full">
+    <div className="w-full">
+      <div className="h-56 w-full">
         <ResponsiveContainer>
           <PieChart>
             <Pie
               data={data}
               dataKey="value"
-              outerRadius={95}
-              innerRadius={55}
-              paddingAngle={4}
+              outerRadius={100}
+              innerRadius={65}
+              paddingAngle={5}
+              stroke="none"
             >
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.color} />
               ))}
             </Pie>
-
-            {/* CUSTOM TOOLTIP */}
             <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ⭐ PREMIUM LEGEND (LIKE YOUR IMAGE) */}
-      <div className="flex justify-center gap-8 mt-4 text-xl font-semibold">
+      {/* PREMIUM LEGEND */}
+      <div className="flex justify-center gap-8 mt-6 text-sm font-bold uppercase tracking-wider">
         <div className="flex items-center gap-2 text-cyan-400">
-          <span className="w-4 h-4 rounded-full bg-cyan-500"></span>
+          <span className="w-3 h-3 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"></span>
           Principal
         </div>
-
-        <div className="flex items-center gap-2 text-orange-400">
-          <span className="w-4 h-4 rounded-full bg-orange-500"></span>
+        <div className="flex items-center gap-2 text-purple-400">
+          <span className="w-3 h-3 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></span>
           Interest
         </div>
       </div>

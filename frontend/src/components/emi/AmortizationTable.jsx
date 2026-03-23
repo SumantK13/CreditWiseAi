@@ -1,19 +1,17 @@
-// src/components/emi/AmortizationTable.jsx
-
 export default function AmortizationTable({ schedule }) {
   return (
-    <div className="max-h-80 overflow-auto rounded-2xl border border-white/10 bg-black/40">
+    <div className="max-h-96 overflow-auto rounded-2xl border border-white/10 bg-black/60 backdrop-blur-md no-scrollbar">
 
       <table className="w-full text-sm text-left border-collapse">
         
         {/* FIXED HEADER */}
-        <thead className="sticky top-0 bg-black/95 backdrop-blur-md z-10">
-          <tr className="text-cyan-400">
-            <th className="px-4 py-3 font-semibold">Month</th>
-            <th className="px-4 py-3 font-semibold">EMI</th>
-            <th className="px-4 py-3 font-semibold">Principal</th>
-            <th className="px-4 py-3 font-semibold">Interest</th>
-            <th className="px-4 py-3 font-semibold">Balance</th>
+        <thead className="sticky top-0 bg-neutral-900/95 backdrop-blur-xl z-10 border-b border-white/10">
+          <tr className="text-neutral-400 text-xs uppercase tracking-widest">
+            <th className="px-6 py-4 font-semibold">Month</th>
+            <th className="px-6 py-4 font-semibold">EMI</th>
+            <th className="px-6 py-4 font-semibold">Principal</th>
+            <th className="px-6 py-4 font-semibold">Interest</th>
+            <th className="px-6 py-4 font-semibold">Balance</th>
           </tr>
         </thead>
 
@@ -21,18 +19,18 @@ export default function AmortizationTable({ schedule }) {
           {schedule.map((row) => (
             <tr
               key={row.month}
-              className="border-t border-white/5 hover:bg-white/5 transition"
+              className="border-b border-white/5 hover:bg-white/5 transition-colors"
             >
-              <td className="px-4 py-3">{row.month}</td>
-              <td className="px-4 py-3">₹ {row.emi.toFixed(0)}</td>
-              <td className="px-4 py-3 text-cyan-300">
-                ₹ {row.principal.toFixed(0)}
+              <td className="px-6 py-4 text-white font-medium">{row.month}</td>
+              <td className="px-6 py-4 font-bold text-white">₹ {row.emi.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+              <td className="px-6 py-4 text-cyan-400 font-medium">
+                ₹ {row.principal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </td>
-              <td className="px-4 py-3 text-orange-300">
-                ₹ {row.interest.toFixed(0)}
+              <td className="px-6 py-4 text-purple-400 font-medium">
+                ₹ {row.interest.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </td>
-              <td className="px-4 py-3 text-neutral-300">
-                ₹ {row.balance.toFixed(0)}
+              <td className="px-6 py-4 text-neutral-400">
+                ₹ {row.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </td>
             </tr>
           ))}
