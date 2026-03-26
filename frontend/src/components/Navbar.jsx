@@ -73,7 +73,7 @@ const Navbar = () => {
               <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-cyan-400 transition-all duration-300 group-hover:w-full"></span>
             </button>
 
-            <NavLink to="/first-time-borrower/roadmap">Borrower Hub</NavLink>
+            <NavLink to="/first-time-borrower/roadmap">First time Borrower?</NavLink>
             <NavLink to="/about">About Us</NavLink>
           </div>
 

@@ -8,6 +8,7 @@ import EMIPage from "@/pages/EMIPage";
 import LoanComparison from './pages/LoanComparison';
 import FirstTimeBorrowerRoadmap from './pages/FirstTimeBorrowerRoadmap';
 import PreFlightChecklist from './pages/PreFlightChecklist';
+import About from './pages/About';
 
 function App() {
   return (
@@ -52,7 +53,10 @@ function App() {
               </ProtectedRoute>
             } 
           />
-
+          <Route
+            path="/about"
+            element={<About/>}
+          />
         </Routes>
       </div>
     </Router>
