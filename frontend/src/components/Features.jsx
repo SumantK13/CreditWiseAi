@@ -11,7 +11,7 @@ const features = [
     gradient: "from-cyan-500/20 to-blue-500/20"
   },
   {
-    title: "92% Prediction Accuracy",
+    title: "88% Prediction Accuracy",
     description: "Our AI model is trained on millions of loan applications to give you the most accurate approval odds in the industry.",
     icon: Target,
     size: "col-span-1 md:col-span-2", // Wide rectangle
