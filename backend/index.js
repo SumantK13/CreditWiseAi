@@ -1,10 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
-
-const result = dotenv.config();
-
-console.log("ENV:", result.parsed);
 import express from "express";
+import 'dotenv/config';
 import connectDB from "./db.js";
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
