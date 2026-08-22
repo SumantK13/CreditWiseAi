@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import joblib
 
+
 app = Flask(__name__)
 
 # Load model and column structure
@@ -13,6 +14,12 @@ try:
     print(f"✅ Expected columns: {model_columns}")
 except Exception as e:
     print(f"❌ Error loading model: {e}")
+
+print(f"✅ Model classes: {model.classes_}")
+
+import numpy as np
+for col, imp in sorted(zip(model_columns, model.feature_importances_), key=lambda x: -x[1]):
+    print(f"{col}: {imp:.4f}")
 
 @app.route('/predict', methods=['POST'])
 def predict():
